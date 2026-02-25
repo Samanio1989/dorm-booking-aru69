@@ -127,6 +127,7 @@
     .btn.soft{ background: #ffffff; color:#111827; border:1px solid var(--line); }
     .btn.grad{ background: linear-gradient(135deg, var(--p1), var(--p2)); }
     .btn.warn{ background: linear-gradient(135deg, #fb7185, #f59e0b); }
+    .btn.lock{ background: linear-gradient(135deg, #0ea5e9, #7c5cff); }
 
     .grid{
       margin-top:18px;
@@ -153,15 +154,14 @@
     .chips{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
     .chip{
       background:#fff; border:1px solid var(--line);
-      border-radius: 18px; padding:12px 12px;
-      display:flex; gap:10px; align-items:flex-start;
+      border-radius: 999px; padding:10px 12px;
+      display:flex; gap:10px; align-items:center;
       box-shadow: 0 8px 18px rgba(31,41,55,.06);
       cursor:pointer;
       transition: .12s transform, .12s box-shadow;
-      min-width: 260px;
     }
     .chip:hover{ transform: translateY(-1px); box-shadow: 0 14px 28px rgba(31,41,55,.10); }
-    .dot{ width:10px; height:10px; border-radius:99px; background:var(--p2); margin-top:6px; }
+    .dot{ width:10px; height:10px; border-radius:99px; background:var(--p2); }
     .dot.g{ background:var(--p3); }
     .dot.o{ background:var(--p4); }
     .dot.p{ background:var(--p1); }
@@ -231,71 +231,28 @@
       font-size:12px;
     }
 
-    /* Admin panel */
-    .adminBox{
-      margin-top:12px;
-      padding:12px;
-      border:1px solid rgba(17,24,39,.08);
-      border-radius:16px;
-      background:rgba(255,255,255,.7);
+    /* Admin modal */
+    .modalBack{
+      position:fixed; inset:0; background:rgba(17,24,39,.45);
+      display:none; align-items:center; justify-content:center; padding:16px;
+      z-index:9999;
     }
-    .adminRow{
-      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    .modal{
+      width:min(520px, 100%); background:#fff; border-radius:20px; padding:16px;
+      box-shadow: 0 22px 60px rgba(0,0,0,.25);
+      border:1px solid rgba(229,231,235,.9);
     }
-    .adminRow input{
-      padding:11px 12px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      font-family:'Kanit',sans-serif;
-      min-width:220px;
-      background:#fff;
+    .modal h3{ margin:0 0 8px; }
+    .modal .muted{ margin:0 0 10px; }
+    .modal .row{ margin-top:8px; }
+    .modal .actions{ justify-content:flex-end; }
+    .adminChip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:999px;
+      background:#fff; border:1px solid var(--line);
+      font-size:12px; font-weight:800;
     }
-    .adminBadge{
-      display:inline-flex; gap:8px; align-items:center;
-      padding:6px 10px;
-      border-radius:999px;
-      background:#fff;
-      border:1px solid var(--line);
-      font-weight:900;
-      font-size:12px;
-    }
-
-    /* PDPA list */
-    .pdpaWrap{
-      margin-top:14px;
-      border:1px solid var(--line);
-      border-radius:16px;
-      background:#fff;
-      overflow:hidden;
-    }
-    .pdpaHead{
-      padding:12px;
-      background:#fafafa;
-      border-bottom:1px solid #f3f4f6;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .pdpaList{
-      max-height: 360px;
-      overflow:auto;
-    }
-    .pdpaItem{
-      padding:12px;
-      border-bottom:1px solid #f3f4f6;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .pdpaItem:last-child{ border-bottom:0; }
-    .pdpaName{ font-weight:900; }
-    .pdpaMeta{ color:var(--muted); font-size:12px; }
-
-    /* Admin-only actions area (hidden until admin) */
-    .adminOnly{ display:none; }
+    .adminChip.on{ border-color:#bbf7d0; background:#ecfdf5; }
   </style>
 </head>
 
@@ -310,12 +267,13 @@
         <div class="logo">🏠</div>
         <div class="title">
           <h1>ระบบจองหอพักนักศึกษา 2569</h1>
-          <div class="sub">หน้าเว็บ GitHub Pages • จองออนไลน์ • มีระบบหลังบ้านสำหรับเจ้าหน้าที่</div>
+          <div class="sub">หน้าเว็บ GitHub Pages • ไม่ต้องล็อกอิน Gmail • เชื่อมต่อ Apps Script API (JSONP)</div>
         </div>
       </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; align-items:center">
+        <span id="adminBadge" class="adminChip">🔒 โหมดหลังบ้าน: ปิด</span>
         <button class="btn soft" onclick="refreshAll()">🔄 รีเฟรช</button>
-        <span class="adminBadge" id="adminStatus">🔒 โหมดนักศึกษา</span>
+        <button class="btn lock" onclick="openAdmin()">🔒 หลังบ้าน</button>
       </div>
     </div>
 
@@ -324,7 +282,7 @@
       <div class="card">
         <h2>📌 ประเภทห้องพัก (เลือกเพื่อจอง)</h2>
         <div class="muted">
-          ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท
+          ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟรายเดือน หน่วยละ 7 บาท
         </div>
 
         <div class="hintBox">
@@ -369,42 +327,30 @@
           <button class="btn soft" onclick="clearForm()">🧹 ล้างฟอร์ม</button>
         </div>
 
-        <!-- PDPA list after booking -->
-        <div class="pdpaWrap" id="pdpaBox" style="display:none;">
-          <div class="pdpaHead">
-            <div>
-              <div style="font-weight:900">📣 รายชื่อผู้จองทั้งหมด (ปกปิดข้อมูลตาม PDPA)</div>
-              <div class="muted">แสดงข้อมูลแบบย่อเพื่อความเป็นส่วนตัว</div>
-            </div>
-            <button class="btn soft" onclick="loadPdpaList()">🔄 อัปเดตรายชื่อ</button>
-          </div>
-          <div class="pdpaList" id="pdpaList"></div>
-        </div>
-
         <div class="foot">
-          <div class="small">ตั้งค่า API ที่บรรทัดบนสุดของสคริปต์ในไฟล์นี้ (API_URL)</div>
-          <code class="badge" id="apiBadge">API: ยังไม่ตั้งค่า</code>
+          <div class="small">เชื่อมต่อผ่าน Apps Script Web App (JSONP)</div>
+          <code class="badge" id="apiBadge">API: -</code>
         </div>
 
-        <!-- Admin login (no credential shown) -->
-        <div class="adminBox">
-          <div style="font-weight:900">🛠 ระบบเจ้าหน้าที่</div>
-          <div class="muted" style="margin-top:4px;">สำหรับดูรายงาน / ส่งออก Excel / ทดสอบระบบ (ซ่อนเมนูจนกว่าจะล็อกอิน)</div>
-          <div class="adminRow" style="margin-top:10px;">
-            <input id="adminUser" type="text" placeholder="ชื่อผู้ใช้งาน">
-            <input id="adminPass" type="password" placeholder="รหัสผ่าน">
-            <button class="btn" onclick="adminLogin()">เข้าสู่ระบบ</button>
-            <button class="btn soft" onclick="adminLogout()">ออกจากระบบ</button>
-          </div>
-
-          <!-- Admin-only actions shown after login -->
-          <div class="actions adminOnly" id="adminOnlyActions" style="margin-top:12px;">
-            <button class="btn warn" onclick="testConnectionAdmin()">🧪 ทดสอบเชื่อมต่อ API</button>
-            <button class="btn soft" onclick="openExcelAdmin()">📥 ส่งออกเป็น Excel</button>
-            <button class="btn" onclick="openReportAdmin()">📋 รายงาน (หลังบ้าน)</button>
-          </div>
-
-          <div class="small" style="margin-top:8px;">* สิทธิ์จะถูกเก็บในเครื่อง (session) เท่านั้น</div>
+        <hr style="border:none; border-top:1px solid rgba(229,231,235,.7); margin:14px 0;">
+        <h2>🧾 รายชื่อผู้จอง (แสดงแบบปกปิดข้อมูล)</h2>
+        <div class="muted">ระบบจะแสดงรายชื่อทั้งหมดที่จองเข้ามา โดยปกปิดข้อมูลส่วนบุคคลตามแนวทาง PDPA</div>
+        <div class="tableWrap" style="margin-top:12px;">
+          <table style="min-width: 820px;">
+            <thead>
+              <tr>
+                <th>เวลา</th>
+                <th>ชื่อ (ปกปิด)</th>
+                <th>คณะ (ปกปิด)</th>
+                <th>สาขา (ปกปิด)</th>
+                <th>โทร (ปกปิด)</th>
+                <th>ประเภทห้อง</th>
+                <th>ราคา/เทอม</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="publicBody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -428,13 +374,24 @@
 
         <div id="dashCards" style="margin-top:12px; display:grid; gap:10px;"></div>
 
+        <div class="hintBox" style="margin-top:14px;">
+          <div style="font-weight:900">🔒 เมนูหลังบ้าน</div>
+          <div class="muted">ทดสอบเชื่อมต่อ API / รายงาน / ส่งออก Excel จะใช้งานได้เมื่อเข้าสู่โหมดหลังบ้าน</div>
+        </div>
+
+        <div class="actions" style="margin-top:12px;">
+          <button class="btn warn" id="btnTest" onclick="adminOnly(testConnection)" disabled>🧪 ทดสอบเชื่อมต่อ API</button>
+          <button class="btn" id="btnReport" onclick="adminOnly(openReport)" disabled>📋 รายงาน (หลังบ้าน)</button>
+          <button class="btn soft" id="btnExcel" onclick="adminOnly(openExcel)" disabled>📥 ส่งออกเป็น Excel</button>
+        </div>
+
         <div class="muted" style="margin-top:10px;">
-          หมายเหตุ: เมนูรายงาน/ส่งออก/ทดสอบ อยู่ใน “ระบบเจ้าหน้าที่” ด้านซ้าย (ต้องเข้าสู่ระบบก่อน)
+          หมายเหตุ: Excel export จะเปิดลิงก์ดาวน์โหลดจาก Google Sheets (ผู้เปิดลิงก์ต้องมีสิทธิ์เข้าถึงไฟล์ชีต)
         </div>
       </div>
     </div>
 
-    <!-- REPORT (Admin only) -->
+    <!-- ADMIN REPORT -->
     <div id="reportCard" class="card" style="margin-top:18px; display:none;">
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
         <div>
@@ -443,12 +400,12 @@
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn soft" onclick="hideReport()">✖ ปิดรายงาน</button>
-          <button class="btn" onclick="openExcelAdmin()">📥 ส่งออก Excel</button>
+          <button class="btn" onclick="openExcel()">📥 ส่งออก Excel</button>
         </div>
       </div>
 
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-        <input id="q" type="text" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / ประเภทห้อง / รหัสการจอง"
+        <input id="q" type="text" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / ประเภท / รหัสการจอง"
                style="flex:1; min-width:240px; padding:11px 12px; border-radius:14px; border:1px solid var(--line); font-family:'Kanit',sans-serif;">
         <button class="btn soft" onclick="renderReport()">🔎 ค้นหา</button>
         <button class="btn soft" onclick="document.getElementById('q').value=''; renderReport();">🧼 ล้างค้นหา</button>
@@ -475,18 +432,46 @@
     </div>
   </div>
 
+  <!-- Admin Modal -->
+  <div id="adminBack" class="modalBack" onclick="closeAdmin(event)">
+    <div class="modal" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+      <h3>🔒 เข้าสู่โหมดหลังบ้าน</h3>
+      <p class="muted">สำหรับเจ้าหน้าที่เท่านั้น</p>
+
+      <div class="row">
+        <div class="field">
+          <label for="adminUser">ชื่อผู้ใช้</label>
+          <input id="adminUser" type="text" autocomplete="username" placeholder="กรอกชื่อผู้ใช้">
+        </div>
+        <div class="field">
+          <label for="adminPass">รหัสผ่าน</label>
+          <input id="adminPass" type="password" autocomplete="current-password" placeholder="กรอกรหัสผ่าน">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn soft" onclick="closeAdmin()">ยกเลิก</button>
+        <button class="btn lock" onclick="loginAdmin()">เข้าสู่ระบบ</button>
+      </div>
+
+      <div class="small" style="margin-top:8px;">
+        * ระบบจะไม่แสดงข้อมูลบัญชีผู้ดูแลบนหน้าเว็บ
+      </div>
+    </div>
+  </div>
+
   <script>
     /**********************
      *  ✅ ตั้งค่าตรงนี้
      **********************/
-    // ใส่ลิงก์ Apps Script Web App (ลงท้าย /exec)
     const API_URL = "https://script.google.com/macros/s/AKfycbx27u8fgUh4hIby9_OzOmRJbn3fTUILLy9FMnB5We1qga17XMcimCIDdTpJiYDX5UiA5g/exec";
 
-    // Admin credential (ซ่อน ไม่แสดงใน UI)
-    const ADMIN_USER = "sam";
-    const ADMIN_PASS = "1900";
-
-    const state = { roomTypes: [], dashboard: null, reservations: [] };
+    const state = {
+      roomTypes: [],
+      dashboard: null,
+      reservations: [],
+      isAdmin: false
+    };
 
     function escapeHtml(s){
       return String(s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
@@ -495,90 +480,150 @@
 
     function setApiBadge(){
       const el = document.getElementById('apiBadge');
-      if(!API_URL || API_URL.includes("PASTE_YOUR")){
-        el.textContent = "API: ยังไม่ตั้งค่า";
-        el.style.opacity = .9;
-      }else{
-        const short = API_URL.replace(/^https?:\/\//,'').slice(0,42) + (API_URL.length>45?'...':'');
-        el.textContent = "API: " + short;
-      }
-    }
-
-    function isAdmin(){
-      return sessionStorage.getItem("isAdmin") === "1";
-    }
-    function setAdminUI(){
-      const badge = document.getElementById("adminStatus");
-      const actions = document.getElementById("adminOnlyActions");
-      if(isAdmin()){
-        badge.textContent = "🔓 โหมดเจ้าหน้าที่";
-        badge.style.background = "#ecfdf5";
-        badge.style.borderColor = "#bbf7d0";
-        actions.style.display = "flex";
-      }else{
-        badge.textContent = "🔒 โหมดนักศึกษา";
-        badge.style.background = "#fff";
-        badge.style.borderColor = "var(--line)";
-        actions.style.display = "none";
-        // ซ่อนรายงานถ้าออกจากระบบ
-        document.getElementById('reportCard').style.display = 'none';
-      }
-    }
-
-    async function callApi(action, payload){
-      const ctrl = new AbortController();
-      const to = setTimeout(()=>ctrl.abort(), 15000);
-
-      try{
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type":"application/json" },
-          body: JSON.stringify({ action, payload }),
-          signal: ctrl.signal
-        });
-
-        const text = await res.text();
-        try { return JSON.parse(text); }
-        catch { return { ok:false, message:"API ตอบกลับไม่ใช่ JSON", raw:text, status:res.status }; }
-
-      }catch(err){
-        return { ok:false, message:"Fetch failed/timeout", raw:String(err) };
-      }finally{
-        clearTimeout(to);
-      }
+      const short = API_URL.replace(/^https?:\/\//,'').slice(0,48) + (API_URL.length>51?'...':'');
+      el.textContent = "API: " + short;
     }
 
     /**********************
-     * PDPA masking helpers
+     * ✅ JSONP Call (แก้ CORS สำหรับ GitHub Pages)
      **********************/
-    function maskName(name){
-      name = String(name||'').trim();
-      if(!name) return '';
-      const n = name.replace(/\s+/g,' ').trim();
-      if(n.length <= 2) return n[0] + "*";
-      if(n.length <= 4) return n.slice(0,1) + "**";
-      return n.slice(0,2) + "**" + n.slice(-1);
-    }
-    function maskPhone(phone){
-      phone = String(phone||'').replace(/\s+/g,'');
-      if(phone.length < 6) return phone ? phone[0] + "****" : "";
-      return phone.slice(0,2) + "******" + phone.slice(-2);
+    function callApi(action, payload){
+      return new Promise((resolve) => {
+        const cb = "cb_" + Date.now() + "_" + Math.floor(Math.random()*100000);
+        const qs = new URLSearchParams();
+        qs.set("action", action);
+        qs.set("callback", cb);
+        if(payload && Object.keys(payload).length){
+          qs.set("payload", JSON.stringify(payload));
+        }
+
+        const url = API_URL + (API_URL.includes("?") ? "&" : "?") + qs.toString();
+
+        let done = false;
+        const timer = setTimeout(() => {
+          if(done) return;
+          done = true;
+          try { delete window[cb]; } catch(_){}
+          script.remove();
+          resolve({ ok:false, message:"Fetch failed/timeout (JSONP)" });
+        }, 15000);
+
+        window[cb] = (data) => {
+          if(done) return;
+          done = true;
+          clearTimeout(timer);
+          try { delete window[cb]; } catch(_){}
+          script.remove();
+          resolve(data);
+        };
+
+        const script = document.createElement("script");
+        script.src = url;
+        script.onerror = () => {
+          if(done) return;
+          done = true;
+          clearTimeout(timer);
+          try { delete window[cb]; } catch(_){}
+          script.remove();
+          resolve({ ok:false, message:"JSONP failed" });
+        };
+
+        document.body.appendChild(script);
+      });
     }
 
-    function normalizeTypeName(typeName){
-      // ✅ ยืนยันว่า UI จะไม่แสดงชื่อหอพัก
-      // ถ้าเผื่อ TypeName มีคำว่า "หอพัก" ปนมา ให้ตัดทิ้ง
-      const t = String(typeName||'').trim();
-      return t.replace(/หอพัก\s*\d+/g,'').replace(/\s*-\s*/g,' ').replace(/\s+/g,' ').trim();
+    /**********************
+     * ✅ Admin mode (ไม่โชว์ user/pass)
+     **********************/
+    function setAdminUI(on){
+      state.isAdmin = !!on;
+      const badge = document.getElementById('adminBadge');
+      badge.textContent = on ? "🔓 โหมดหลังบ้าน: เปิด" : "🔒 โหมดหลังบ้าน: ปิด";
+      badge.classList.toggle('on', on);
+
+      ["btnTest","btnReport","btnExcel"].forEach(id=>{
+        const b = document.getElementById(id);
+        b.disabled = !on;
+        b.style.opacity = on ? "1" : ".65";
+        b.style.cursor = on ? "pointer" : "not-allowed";
+      });
     }
 
-    async function refreshAll(){
-      setApiBadge();
+    function openAdmin(){
+      document.getElementById('adminBack').style.display = 'flex';
+      setTimeout(()=>document.getElementById('adminUser').focus(), 50);
+    }
 
-      if(!API_URL || API_URL.includes("PASTE_YOUR")){
-        await Swal.fire({icon:'warning', title:'ยังไม่ได้ตั้งค่า API', text:'กรุณาตั้งค่า API_URL ในไฟล์ index.html ให้ถูกต้อง'});
+    function closeAdmin(ev){
+      if(ev && ev.target && ev.target.id !== 'adminBack') return;
+      document.getElementById('adminBack').style.display = 'none';
+      document.getElementById('adminUser').value = '';
+      document.getElementById('adminPass').value = '';
+    }
+
+    function loginAdmin(){
+      const u = (document.getElementById('adminUser').value||'').trim();
+      const p = (document.getElementById('adminPass').value||'').trim();
+
+      // ตรวจสอบแบบ local (ไม่โชว์ค่าถูกต้องบน UI)
+      const ok = (u === "sam" && p === "1900");
+      if(!ok){
+        Swal.fire({icon:'error', title:'เข้าสู่ระบบไม่สำเร็จ', text:'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'});
         return;
       }
+      closeAdmin();
+      setAdminUI(true);
+      toast('success','เข้าสู่โหมดหลังบ้านแล้ว');
+    }
+
+    function adminOnly(fn){
+      if(!state.isAdmin){
+        openAdmin();
+        return;
+      }
+      fn();
+    }
+
+    /**********************
+     * ✅ PDPA masking
+     **********************/
+    function maskName(fullName){
+      const s = String(fullName||'').trim();
+      if(!s) return '-';
+      const parts = s.split(/\s+/).filter(Boolean);
+      if(parts.length === 1){
+        // ชื่อเดี่ยว: แสดง 1 ตัวอักษร + ***
+        const a = parts[0];
+        return a.slice(0,1) + "***";
+      }
+      // ชื่อ + นามสกุล
+      const first = parts[0];
+      const last  = parts[parts.length-1];
+      const f = first.slice(0,1) + "***";
+      const l = last.slice(0,1) + "***";
+      return f + " " + l;
+    }
+
+    function maskPhone(phone){
+      const s = String(phone||'').replace(/\s+/g,'');
+      if(s.length < 4) return "***";
+      const head = s.slice(0,3);
+      const tail = s.slice(-2);
+      return head + "*****" + tail;
+    }
+
+    function maskTextShort(s){
+      s = String(s||'').trim();
+      if(!s) return '-';
+      if(s.length <= 4) return s.slice(0,1) + "***";
+      return s.slice(0,2) + "***";
+    }
+
+    /**********************
+     * ✅ Load / Render
+     **********************/
+    async function refreshAll(){
+      setApiBadge();
 
       Swal.showLoading();
 
@@ -589,65 +634,75 @@
         return;
       }
 
-      // ✅ ข้อ 1: ตัด Dorm ออก 100% + รวมตาม (TypeName + Price)
-      const rawTypes = rt.data || [];
-      const map = {};
-      rawTypes.forEach(t=>{
-        const typeName = normalizeTypeName(t.typeName);
-        const price = Number(t.pricePerTerm||0);
-        const key = `${typeName}|${price}`;
-        if(!map[key]){
-          map[key] = {
-            roomTypeId: t.roomTypeId, // ใช้ตัวแทน 1 อันสำหรับจอง (ระบบยังจองตาม roomTypeId)
-            typeName,
-            pricePerTerm: price,
-            capacityPersons: 0
-          };
+      // ✅ เอาชื่อหอพักออก: รวมตาม TypeName + PricePerTerm
+      const raw = rt.data || [];
+      const map = new Map();
+      raw.forEach(t=>{
+        const key = `${t.typeName}__${t.pricePerTerm}`;
+        if(!map.has(key)){
+          map.set(key, {
+            roomTypeId: t.roomTypeId,  // ใช้ตัวแรกเป็นค่าเริ่มต้น
+            typeName: t.typeName,
+            pricePerTerm: Number(t.pricePerTerm||0),
+            capacityPersons: 0,
+            notes: t.notes || ''
+          });
         }
-        map[key].capacityPersons += Number(t.capacityPersons||0);
+        const obj = map.get(key);
+        obj.capacityPersons += Number(t.capacityPersons||0); // รวมความจุทุกหอของประเภทเดียวกัน
       });
-      state.roomTypes = Object.values(map);
+
+      state.roomTypes = Array.from(map.values())
+        .sort((a,b)=> a.pricePerTerm - b.pricePerTerm || String(a.typeName).localeCompare(String(b.typeName)));
 
       buildRoomList();
       buildRoomSelect();
 
       const d = await callApi("getDashboard");
       Swal.close();
+
       if(!d || !d.ok){
         await Swal.fire({icon:'error', title:'โหลด Dashboard ไม่สำเร็จ', text: d?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
 
-      // ✅ Dashboard: รวมตาม (TypeName + Price) และไม่โชว์ Dorm
-      const cards = d.data?.cards || [];
-      const dashMap = {};
-      cards.forEach(c=>{
-        const typeName = normalizeTypeName(c.typeName);
-        const price = Number(c.pricePerTerm||0);
-        const key = `${typeName}|${price}`;
-        if(!dashMap[key]){
-          dashMap[key] = { typeName, pricePerTerm: price, capacityPersons: 0, booked: 0 };
+      // dashboard cards: รวมตาม TypeName+Price เหมือนกัน
+      const cardsRaw = (d.data?.cards || []);
+      const m2 = new Map();
+      cardsRaw.forEach(c=>{
+        const key = `${c.typeName}__${c.pricePerTerm}`;
+        if(!m2.has(key)){
+          m2.set(key, {
+            typeName: c.typeName,
+            pricePerTerm: Number(c.pricePerTerm||0),
+            capacityPersons: 0,
+            booked: 0
+          });
         }
-        dashMap[key].capacityPersons += Number(c.capacityPersons||0);
-        dashMap[key].booked += Number(c.booked||0);
+        const o = m2.get(key);
+        o.capacityPersons += Number(c.capacityPersons||0);
+        o.booked += Number(c.booked||0);
       });
 
-      const dashCards = Object.values(dashMap).map(x=>{
-        x.remaining = Math.max(0, x.capacityPersons - x.booked);
-        x.percent = x.capacityPersons>0 ? Math.round((x.booked/x.capacityPersons)*100) : 0;
-        return x;
-      });
+      const cards = Array.from(m2.values()).map(o=>{
+        const remaining = Math.max(0, o.capacityPersons - o.booked);
+        const percent = o.capacityPersons>0 ? Math.round((o.booked/o.capacityPersons)*100) : 0;
+        return { ...o, remaining, percent };
+      }).sort((a,b)=> a.pricePerTerm - b.pricePerTerm || String(a.typeName).localeCompare(String(b.typeName)));
 
-      const totals = dashCards.reduce((acc,c)=>{
+      const totals = cards.reduce((acc, c) => {
         acc.capacity += c.capacityPersons;
         acc.booked += c.booked;
         acc.remaining += c.remaining;
         return acc;
-      }, {capacity:0, booked:0, remaining:0});
+      }, { capacity: 0, booked: 0, remaining: 0 });
 
-      state.dashboard = { totals, cards: dashCards };
-
+      state.dashboard = { totals, cards };
       renderDashboard();
+
+      // โหลด public list เสมอ
+      await refreshPublicList();
+
       toast('success','อัปเดตข้อมูลล่าสุดแล้ว');
     }
 
@@ -659,13 +714,12 @@
       }
       const dots = ['p','g','o',''];
       el.innerHTML = state.roomTypes.map((t,i)=>`
-        <div class="chip" onclick="selectType('${escapeHtml(t.roomTypeId)}')">
+        <div class="chip" onclick="selectType('${t.roomTypeId}')">
           <span class="dot ${dots[i%dots.length]}"></span>
           <div>
             <div style="font-weight:900">${escapeHtml(t.typeName)}</div>
             <div class="muted" style="font-size:12px">
-              ราคา <b>${Number(t.pricePerTerm||0).toLocaleString()}</b> บาท/คน/เทอม
-              • รองรับรวม <b>${Number(t.capacityPersons||0).toLocaleString()}</b> คน
+              ราคา <b>${Number(t.pricePerTerm).toLocaleString()}</b> บาท/คน/เทอม • รองรับรวม <b>${Number(t.capacityPersons).toLocaleString()}</b> คน
             </div>
           </div>
         </div>
@@ -675,7 +729,7 @@
     function buildRoomSelect(){
       const sel = document.getElementById('roomTypeId');
       sel.innerHTML = state.roomTypes.map(t=>`
-        <option value="${escapeHtml(t.roomTypeId)}">${escapeHtml(t.typeName)} (${Number(t.pricePerTerm||0).toLocaleString()} บาท/เทอม)</option>
+        <option value="${escapeHtml(t.roomTypeId)}">${escapeHtml(t.typeName)} (${Number(t.pricePerTerm).toLocaleString()} บาท/เทอม)</option>
       `).join('');
       sel.onchange = ()=> updateHintByType(sel.value);
       if(state.roomTypes[0]) updateHintByType(state.roomTypes[0].roomTypeId);
@@ -684,7 +738,7 @@
     function updateHintByType(id){
       const t = state.roomTypes.find(x=>x.roomTypeId===id);
       if(!t){ setHint(''); return; }
-      setHint(`ราคา ${Number(t.pricePerTerm||0).toLocaleString()} บาท/คน/เทอม • รองรับรวม ${Number(t.capacityPersons||0).toLocaleString()} คน • ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท`);
+      setHint(`ราคา ${Number(t.pricePerTerm).toLocaleString()} บาท/คน/เทอม • รองรับรวม ${Number(t.capacityPersons).toLocaleString()} คน • ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท`);
     }
 
     function selectType(id){
@@ -714,7 +768,7 @@
       }
 
       const type = state.roomTypes.find(x=>x.roomTypeId === payload.roomTypeId);
-      const typeText = type ? `${type.typeName} (${Number(type.pricePerTerm||0).toLocaleString()} บาท/เทอม)` : payload.roomTypeId;
+      const typeText = type ? `${type.typeName} (${Number(type.pricePerTerm).toLocaleString()} บาท/เทอม)` : payload.roomTypeId;
 
       const c = await Swal.fire({
         title: 'ยืนยันการจอง?',
@@ -723,7 +777,7 @@
           <div><b>สาขา:</b> ${escapeHtml(payload.major)}</div>
           <div><b>คณะ:</b> ${escapeHtml(payload.faculty)}</div>
           <div><b>โทร:</b> ${escapeHtml(payload.phone)}</div>
-          <div><b>ประเภทห้อง:</b> ${escapeHtml(typeText)}</div>
+          <div><b>ประเภท:</b> ${escapeHtml(typeText)}</div>
         </div>`,
         icon:'question',
         showCancelButton:true,
@@ -741,14 +795,9 @@
         return;
       }
 
-      await Swal.fire({icon:'success', title:'จองสำเร็จ ✅', text:`ระบบบันทึกการจองเรียบร้อย\nรหัสการจอง: ${r.data?.resvId || '-'}`});
+      await Swal.fire({icon:'success', title:'สำเร็จ', text:`${r.message}\nรหัสการจอง: ${r.data?.resvId || '-'}`});
       clearForm();
-      await refreshAll();
-
-      // ✅ ข้อ 3: แสดงรายชื่อผู้จองทั้งหมด (PDPA) หลังจองเสร็จ
-      document.getElementById('pdpaBox').style.display = 'block';
-      await loadPdpaList();
-      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+      await refreshAll(); // จะรวม public list ด้วย
     }
 
     function renderDashboard(){
@@ -765,7 +814,7 @@
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
             <div>
               <div style="font-weight:900">${escapeHtml(c.typeName)}</div>
-              <div class="muted">ราคา ${Number(c.pricePerTerm||0).toLocaleString()} บาท/เทอม • รองรับรวม ${Number(c.capacityPersons||0).toLocaleString()} คน • จองแล้ว ${Number(c.booked||0).toLocaleString()} คน • คงเหลือ ${Number(c.remaining||0).toLocaleString()} คน</div>
+              <div class="muted">ราคา ${Number(c.pricePerTerm).toLocaleString()} บาท/เทอม • รองรับ ${Number(c.capacityPersons).toLocaleString()} คน • จองแล้ว ${Number(c.booked).toLocaleString()} คน • คงเหลือ ${Number(c.remaining).toLocaleString()} คน</div>
             </div>
             <div class="pill ${c.remaining>0?'ok':'no'}">
               ${c.remaining>0?'🟢 ว่าง':'🔴 เต็ม'} • ${Number(c.percent||0)}%
@@ -776,65 +825,39 @@
       `).join('');
     }
 
-    async function loadPdpaList(){
+    /**********************
+     * ✅ Public list (PDPA)
+     **********************/
+    async function refreshPublicList(){
       const res = await callApi("listReservations");
       if(!res || !res.ok){
-        await Swal.fire({icon:'error', title:'โหลดรายชื่อไม่สำเร็จ', text: res?.message || 'ไม่สามารถติดต่อ API'});
+        document.getElementById('publicBody').innerHTML =
+          `<tr><td colspan="8" class="muted">โหลดรายชื่อไม่สำเร็จ: ${escapeHtml(res?.message||'')}</td></tr>`;
         return;
       }
-      const all = res.data || [];
-      const rows = all.filter(x=>String(x.Status)==='BOOKED');
 
-      const el = document.getElementById("pdpaList");
-      el.innerHTML = rows.map(r=>`
-        <div class="pdpaItem">
-          <div>
-            <div class="pdpaName">${escapeHtml(maskName(r.FullName))}</div>
-            <div class="pdpaMeta">${escapeHtml(maskPhone(r.Phone))} • ${escapeHtml(r.Faculty||'')} • ${escapeHtml(r.Major||'')}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-weight:900">${escapeHtml(normalizeTypeName(r.TypeName||''))}</div>
-            <div class="pdpaMeta">${Number(r.PricePerTerm||0).toLocaleString()} บาท/เทอม</div>
-          </div>
-        </div>
-      `).join('') || `<div style="padding:12px;" class="muted">ยังไม่มีผู้จอง</div>`;
+      // แสดงเฉพาะ BOOKED เพื่อความชัดเจน (ถ้าต้องการแสดงทั้งหมด ให้เอา filter ออก)
+      const rows = (res.data || []).filter(r=>String(r.Status)==='BOOKED');
+
+      const tb = document.getElementById('publicBody');
+      tb.innerHTML = rows.map(r=>`
+        <tr>
+          <td>${escapeHtml(r.CreatedAt)}</td>
+          <td><b>${escapeHtml(maskName(r.FullName))}</b></td>
+          <td>${escapeHtml(maskTextShort(r.Faculty))}</td>
+          <td>${escapeHtml(maskTextShort(r.Major))}</td>
+          <td>${escapeHtml(maskPhone(r.Phone))}</td>
+          <td>${escapeHtml(r.TypeName || '-')}</td>
+          <td>${Number(r.PricePerTerm||0).toLocaleString()}</td>
+          <td><span class="pill ok">✅ BOOKED</span></td>
+        </tr>
+      `).join('') || `<tr><td colspan="8" class="muted">ยังไม่มีผู้จอง</td></tr>`;
     }
 
     /**********************
-     * Admin-only features
+     * ✅ Admin functions (หลังบ้าน)
      **********************/
-    async function adminLogin(){
-      const u = (document.getElementById("adminUser").value || '').trim();
-      const p = (document.getElementById("adminPass").value || '').trim();
-
-      if(u === ADMIN_USER && p === ADMIN_PASS){
-        sessionStorage.setItem("isAdmin","1");
-        setAdminUI();
-        await Swal.fire({icon:'success', title:'เข้าสู่ระบบสำเร็จ', text:'พร้อมใช้งานเมนูหลังบ้าน'});
-      }else{
-        sessionStorage.removeItem("isAdmin");
-        setAdminUI();
-        await Swal.fire({icon:'error', title:'เข้าสู่ระบบไม่สำเร็จ', text:'กรุณาตรวจสอบข้อมูลอีกครั้ง'});
-      }
-      document.getElementById("adminPass").value = '';
-    }
-
-    function adminLogout(){
-      sessionStorage.removeItem("isAdmin");
-      setAdminUI();
-      Swal.fire({icon:'success', title:'ออกจากระบบแล้ว'});
-    }
-
-    function requireAdmin_(){
-      if(!isAdmin()){
-        Swal.fire({icon:'warning', title:'เฉพาะเจ้าหน้าที่', text:'กรุณาเข้าสู่ระบบเจ้าหน้าที่ก่อนใช้งานเมนูนี้'});
-        return false;
-      }
-      return true;
-    }
-
-    async function testConnectionAdmin(){
-      if(!requireAdmin_()) return;
+    async function testConnection(){
       Swal.showLoading();
       const r = await callApi("getDashboard");
       Swal.close();
@@ -842,8 +865,7 @@
       else await Swal.fire({icon:'error', title:'เชื่อมต่อไม่สำเร็จ', text: r?.message || 'เรียก API ไม่ได้'});
     }
 
-    async function openExcelAdmin(){
-      if(!requireAdmin_()) return;
+    async function openExcel(){
       const res = await callApi("getExportExcelUrl");
       const url = res?.data?.url;
       if(!url){
@@ -853,8 +875,7 @@
       window.open(url, "_blank");
     }
 
-    async function openReportAdmin(){
-      if(!requireAdmin_()) return;
+    async function openReport(){
       document.getElementById('reportCard').style.display = 'block';
       window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
 
@@ -895,7 +916,7 @@
           <td>${escapeHtml(r.Major)}</td>
           <td>${escapeHtml(r.Faculty)}</td>
           <td>${escapeHtml(r.Phone)}</td>
-          <td>${escapeHtml(normalizeTypeName(r.TypeName||''))}</td>
+          <td>${escapeHtml(r.TypeName || '-')}</td>
           <td>${Number(r.PricePerTerm||0).toLocaleString()}</td>
           <td>${String(r.Status)==='BOOKED'
             ? '<span class="pill ok">✅ BOOKED</span>'
@@ -907,8 +928,8 @@
 
     // init
     setApiBadge();
-    setAdminUI();
-    if(API_URL && !API_URL.includes("PASTE_YOUR")) refreshAll();
+    setAdminUI(false);
+    refreshAll();
   </script>
 </body>
 </html>
