@@ -38,6 +38,7 @@
         close: ()=>{}
       };
 
+      // ✅ toast แบบไม่ใช้ Swal (กัน CSP ชัวร์)
       window.toast = function(icon, title){
         console.log(`[${icon}] ${title}`);
       };
@@ -153,14 +154,15 @@
     .chips{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
     .chip{
       background:#fff; border:1px solid var(--line);
-      border-radius: 999px; padding:10px 12px;
-      display:flex; gap:10px; align-items:center;
+      border-radius: 16px; padding:12px 12px;
+      display:flex; gap:10px; align-items:flex-start;
       box-shadow: 0 8px 18px rgba(31,41,55,.06);
       cursor:pointer;
       transition: .12s transform, .12s box-shadow;
+      width:100%;
     }
     .chip:hover{ transform: translateY(-1px); box-shadow: 0 14px 28px rgba(31,41,55,.10); }
-    .dot{ width:10px; height:10px; border-radius:99px; background:var(--p2); }
+    .dot{ width:10px; height:10px; border-radius:99px; background:var(--p2); margin-top:6px; }
     .dot.g{ background:var(--p3); }
     .dot.o{ background:var(--p4); }
     .dot.p{ background:var(--p1); }
@@ -190,7 +192,7 @@
     .kpi .t{ color:var(--muted); font-size:12px; }
 
     .tableWrap{ overflow:auto; border:1px solid var(--line); border-radius: 16px; background:#fff; }
-    table{ border-collapse:collapse; width:100%; min-width: 980px; }
+    table{ border-collapse:collapse; width:100%; min-width: 860px; }
     th, td{ padding:10px 10px; border-bottom:1px solid #f3f4f6; font-size:13px; text-align:left; vertical-align:top; }
     th{ position:sticky; top:0; background:#fafafa; z-index:2; }
 
@@ -230,9 +232,43 @@
       font-size:12px;
     }
 
-    .publicWrap{ margin-top:14px; }
-    .miniTable{ min-width: 860px; } /* ✅ ปรับตามคอลัมน์ใหม่ (ไม่มีโทร) */
-    @media (max-width:560px){ .miniTable{ min-width: 760px; } }
+    /* admin modal */
+    .modalMask{
+      position:fixed; inset:0; background:rgba(17,24,39,.35);
+      display:none; align-items:center; justify-content:center;
+      padding:18px; z-index:50;
+    }
+    .modal{
+      width:min(520px, 96vw);
+      background:#fff;
+      border-radius:22px;
+      box-shadow: 0 24px 60px rgba(17,24,39,.22);
+      border:1px solid rgba(229,231,235,.9);
+      overflow:hidden;
+    }
+    .modalHead{
+      padding:14px 16px;
+      display:flex; justify-content:space-between; align-items:center;
+      background:linear-gradient(135deg, rgba(255,79,163,.12), rgba(124,92,255,.12));
+    }
+    .modalHead b{font-size:14px;}
+    .modalBody{ padding:14px 16px; }
+    .modalFoot{ padding:14px 16px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f3f4f6; }
+    .xbtn{
+      border:0; background:transparent; cursor:pointer; font-size:18px; line-height:1;
+      padding:6px 10px; border-radius:12px;
+    }
+    .xbtn:hover{ background:#f3f4f6; }
+
+    .adminBadge{
+      display:none;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid #d1fae5; background:#ecfdf5;
+      font-weight:900; font-size:12px;
+      color:#065f46;
+      align-items:center; gap:6px;
+    }
+    .adminBadge.on{ display:inline-flex; }
   </style>
 </head>
 
@@ -247,12 +283,14 @@
         <div class="logo">🏠</div>
         <div class="title">
           <h1>ระบบจองหอพักนักศึกษา 2569</h1>
-          <div class="sub">เฉพาะนักศึกษาหญิงเท่านั้น</div>
+          <div class="sub">หน้าเว็บ GitHub Pages • จองออนไลน์ • แสดงรายชื่อแบบปกปิดข้อมูล (PDPA)</div>
         </div>
       </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; align-items:center">
+        <span id="adminBadge" class="adminBadge">🔒 Admin</span>
         <button class="btn soft" onclick="refreshAll()">🔄 รีเฟรช</button>
-        <button class="btn soft" onclick="openAdmin()">🔒 ระบบหลังบ้าน</button>
+        <button class="btn" onclick="openAdminGate('report')">🧰 เมนูหลังบ้าน</button>
       </div>
     </div>
 
@@ -261,13 +299,13 @@
       <div class="card">
         <h2>📌 ประเภทห้องพัก (เลือกเพื่อจอง)</h2>
         <div class="muted">
-          ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟรายเดือน หน่วยละ 7 บาท
+          ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟ หน่วยละ 7 บาท
         </div>
 
         <div class="hintBox">
           <div style="font-weight:900">✨ สิ่งอำนวยความสะดวก (สรุป)</div>
           <div class="small">
-            ภายในห้อง: เตียง+ที่นอน 3.5 ฟุต, พัดลมโคจร, ตู้เสื้อผ้า, โต๊ะ+เก้าอี้, (แอร์บางประเภท)<br>
+            ภายในห้อง: เตียง+ที่นอน 3.5 ฟุต, พัดลมโคจร, ตู้เสื้อผ้า, โต๊ะ+เก้าอี้ (แอร์บางประเภท)<br>
             ส่วนกลาง: เครื่องซักผ้าหยอดเหรียญ, ห้องทีวี, CCTV, รปภ.24ชม., คีย์การ์ด, ทำความสะอาด, อุปกรณ์ออกกำลังกายกลางแจ้ง
           </div>
         </div>
@@ -282,24 +320,25 @@
             <label for="fullName">ชื่อ - สกุลผู้จอง (นักศึกษา)</label>
             <input id="fullName" type="text" placeholder="เช่น นายสมชาย ใจดี" autocomplete="name">
           </div>
+
           <div class="field">
             <label for="phone">เบอร์โทรศัพท์</label>
             <input id="phone" type="tel" placeholder="เช่น 08xxxxxxxx" autocomplete="tel">
           </div>
+
           <div class="field">
             <label for="major">สาขาวิชา</label>
             <input id="major" type="text" placeholder="เช่น นิเทศศาสตร์ดิจิทัล">
           </div>
 
-          <!-- ✅ คณะเป็น dropdown ตามที่สั่ง -->
           <div class="field">
             <label for="faculty">คณะ</label>
             <select id="faculty">
-              <option value="" selected disabled>-- เลือกคณะ --</option>
-              <option value="คณะครุศาสตร์">คณะครุศาสตร์</option>
-              <option value="คณะมนุษยศาสตร์และสังคมศาสตร์">คณะมนุษยศาสตร์และสังคมศาสตร์</option>
-              <option value="คณะวิทยาศาสตร์และเทคโนโลยี">คณะวิทยาศาสตร์และเทคโนโลยี</option>
-              <option value="คณะวิทยาการจัดการ">คณะวิทยาการจัดการ</option>
+              <option value="">-- เลือกคณะ --</option>
+              <option>ครุศาสตร์</option>
+              <option>มนุษยศาสตร์และสังคมศาสตร์</option>
+              <option>วิทยาศาสตร์และเทคโนโลยี</option>
+              <option>วิทยาการจัดการ</option>
             </select>
           </div>
 
@@ -316,23 +355,21 @@
         </div>
 
         <div class="foot">
-          <div class="small">API เชื่อมต่ออยู่ที่ (API_URL) ในไฟล์นี้</div>
+          <div class="small">เชื่อมต่อ API แล้ว</div>
           <code class="badge" id="apiBadge">API: -</code>
         </div>
 
-        <!-- ✅ รายชื่อผู้จองแบบ PDPA (แก้ตามที่สั่ง) -->
-        <div class="publicWrap">
-          <h2 style="margin-top:16px;">👥 รายชื่อผู้จอง (แสดงแบบปกปิดข้อมูล)</h2>
-          <div class="muted">
-            ปกปิดชื่อ-สกุล <b>3 ตัวท้าย</b> • แสดงคณะ/สาขาเต็ม • <b>ไม่แสดงเบอร์โทร</b>
-          </div>
+        <!-- PDPA list shown to students -->
+        <div class="card" style="margin-top:14px; background:#ffffffcc;">
+          <h2 style="margin:0 0 6px;">👥 รายชื่อผู้จอง (แสดงแบบปกปิดข้อมูล)</h2>
+          <div class="muted">ปกปิดชื่อ-สกุล “3 ตัวอักษรท้าย” • แสดงคณะ/สาขาเต็ม • ไม่แสดงเบอร์โทร</div>
 
           <div class="tableWrap" style="margin-top:10px;">
-            <table class="miniTable">
+            <table style="min-width:820px">
               <thead>
                 <tr>
                   <th>เวลา</th>
-                  <th>ชื่อ-สกุล (ปกปิด 3 ตัวท้าย)</th>
+                  <th>ชื่อ-สกุล (ปกปิด)</th>
                   <th>คณะ</th>
                   <th>สาขา</th>
                   <th>ประเภทห้อง</th>
@@ -340,11 +377,10 @@
                   <th>สถานะ</th>
                 </tr>
               </thead>
-              <tbody id="publicBody"></tbody>
+              <tbody id="publicListBody"></tbody>
             </table>
           </div>
         </div>
-
       </div>
 
       <!-- RIGHT -->
@@ -367,90 +403,85 @@
 
         <div id="dashCards" style="margin-top:12px; display:grid; gap:10px;"></div>
 
+        <div class="actions" style="margin-top:14px;">
+          <button class="btn soft" onclick="openAdminGate('test')">🧪 ทดสอบเชื่อมต่อ API</button>
+          <button class="btn soft" onclick="openAdminGate('excel')">📥 ส่งออกเป็น Excel</button>
+          <button class="btn" onclick="openAdminGate('report')">📋 รายงาน (หลังบ้าน)</button>
+        </div>
+
         <div class="muted" style="margin-top:10px;">
-          หมายเหตุ: รายงาน/ทดสอบ API/ส่งออก Excel อยู่ใน “ระบบหลังบ้าน”
+          หมายเหตุ: เมนูหลังบ้านจะให้ใช้งานหลังผ่านการยืนยันตัวตนผู้ดูแลระบบ
         </div>
       </div>
     </div>
 
-    <!-- ADMIN PANEL (ซ่อน user/pass ไม่โชว์ใน UI ตามที่สั่ง) -->
-    <div id="adminCard" class="card" style="margin-top:18px; display:none;">
+    <!-- ADMIN REPORT (hidden until admin) -->
+    <div id="reportCard" class="card" style="margin-top:18px; display:none;">
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
         <div>
-          <h2 style="margin:0;">🔒 ระบบหลังบ้าน</h2>
-          <div class="muted">สำหรับเจ้าหน้าที่ (ต้องยืนยันตัวตนก่อนใช้งาน)</div>
+          <h2 style="margin:0;">📋 รายงานรายชื่อผู้จองทั้งหมด (หลังบ้าน)</h2>
+          <div class="muted">รายการทั้งหมดในระบบ (BOOKED / CANCELLED)</div>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn soft" onclick="closeAdmin()">✖ ปิด</button>
+          <button class="btn soft" onclick="hideReport()">✖ ปิดรายงาน</button>
+          <button class="btn" onclick="openExcel()">📥 ส่งออก Excel</button>
         </div>
       </div>
 
-      <div id="adminLogin" style="margin-top:12px;">
-        <div class="row">
-          <div class="field">
-            <label for="adminUser">Username</label>
-            <input id="adminUser" type="text" autocomplete="username" placeholder="กรอกชื่อผู้ใช้">
-          </div>
-          <div class="field">
-            <label for="adminPass">Password</label>
-            <input id="adminPass" type="password" autocomplete="current-password" placeholder="กรอกรหัสผ่าน">
-          </div>
-        </div>
-        <div class="actions">
-          <button class="btn" onclick="adminLogin()">เข้าสู่ระบบ</button>
-        </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+        <input id="q" type="text" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / ประเภทห้อง / รหัสการจอง"
+               style="flex:1; min-width:240px; padding:11px 12px; border-radius:14px; border:1px solid var(--line); font-family:'Kanit',sans-serif;">
+        <button class="btn soft" onclick="renderReport()">🔎 ค้นหา</button>
+        <button class="btn soft" onclick="document.getElementById('q').value=''; renderReport();">🧼 ล้างค้นหา</button>
       </div>
 
-      <div id="adminTools" style="margin-top:12px; display:none;">
-        <div class="actions">
-          <button class="btn warn" onclick="testConnection()">🧪 ทดสอบเชื่อมต่อ API</button>
-          <button class="btn" onclick="openAdminReport()">📋 รายงาน</button>
-          <button class="btn soft" onclick="openExcel()">📥 ส่งออกเป็น Excel</button>
-          <button class="btn soft" onclick="adminLogout()">ออกจากระบบ</button>
-        </div>
-
-        <div id="reportCard" class="card" style="margin-top:14px; display:none;">
-          <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-            <div>
-              <h2 style="margin:0;">📋 รายงานรายชื่อผู้จองทั้งหมด</h2>
-              <div class="muted">แสดงรายการทั้งหมดในระบบ (BOOKED / CANCELLED)</div>
-            </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button class="btn soft" onclick="hideReport()">✖ ปิดรายงาน</button>
-              <button class="btn" onclick="openExcel()">📥 ส่งออก Excel</button>
-            </div>
-          </div>
-
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-            <input id="q" type="text" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / ประเภทห้อง / รหัสการจอง"
-                   style="flex:1; min-width:240px; padding:11px 12px; border-radius:14px; border:1px solid var(--line); font-family:'Kanit',sans-serif;">
-            <button class="btn soft" onclick="renderReport()">🔎 ค้นหา</button>
-            <button class="btn soft" onclick="document.getElementById('q').value=''; renderReport();">🧼 ล้างค้นหา</button>
-          </div>
-
-          <div class="tableWrap" style="margin-top:12px;">
-            <table>
-              <thead>
-                <tr>
-                  <th>CreatedAt</th>
-                  <th>ResvID</th>
-                  <th>ชื่อ-สกุล</th>
-                  <th>สาขา</th>
-                  <th>คณะ</th>
-                  <th>โทร</th>
-                  <th>ประเภท</th>
-                  <th>ราคา/เทอม</th>
-                  <th>สถานะ</th>
-                </tr>
-              </thead>
-              <tbody id="reportBody"></tbody>
-            </table>
-          </div>
-        </div>
-
+      <div class="tableWrap" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>CreatedAt</th>
+              <th>ResvID</th>
+              <th>ชื่อ-สกุล</th>
+              <th>สาขา</th>
+              <th>คณะ</th>
+              <th>โทร</th>
+              <th>ประเภท</th>
+              <th>ราคา/เทอม</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="reportBody"></tbody>
+        </table>
       </div>
     </div>
+  </div>
 
+  <!-- Admin Modal -->
+  <div id="adminMask" class="modalMask" onclick="maskClose(event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="adminTitle" onclick="event.stopPropagation()">
+      <div class="modalHead">
+        <b id="adminTitle">ยืนยันตัวตนผู้ดูแลระบบ</b>
+        <button class="xbtn" onclick="closeAdminModal()">✕</button>
+      </div>
+      <div class="modalBody">
+        <div class="muted" style="margin-bottom:10px;">กรุณากรอกข้อมูลเพื่อเข้าสู่เมนูหลังบ้าน</div>
+        <div class="row" style="margin-top:0">
+          <div class="field">
+            <label for="adminUser">ชื่อผู้ใช้</label>
+            <input id="adminUser" type="text" placeholder="Username" autocomplete="username">
+          </div>
+          <div class="field">
+            <label for="adminPass">รหัสผ่าน</label>
+            <input id="adminPass" type="password" placeholder="Password" autocomplete="current-password">
+          </div>
+        </div>
+        <div class="small" style="margin-top:10px;">* ข้อมูลสำหรับผู้ดูแลระบบเท่านั้น</div>
+      </div>
+      <div class="modalFoot">
+        <button class="btn soft" onclick="closeAdminModal()">ยกเลิก</button>
+        <button class="btn grad" onclick="adminLogin()">เข้าสู่ระบบ</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -458,66 +489,267 @@
      *  ✅ ตั้งค่า API
      **********************/
     const API_URL = "https://script.google.com/macros/s/AKfycbx27u8fgUh4hIby9_OzOmRJbn3fTUILLy9FMnB5We1qga17XMcimCIDdTpJiYDX5UiA5g/exec";
-    const state = { roomTypes: [], dashboard: null, reservations: [], adminAuthed:false };
+
+    // ✅ เก็บในโค้ด (ตามที่ขอ: ไม่แสดงให้ผู้ใช้ทราบใน UI)
+    const __ADMIN_USER = "sam";
+    const __ADMIN_PASS = "1900";
+
+    const state = {
+      roomTypes: [],
+      dashboard: null,
+      reservations: [],
+      isAdmin: false,
+      pendingAdminAction: null
+    };
 
     function escapeHtml(s){
       return String(s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
     }
-    function setHint(text){ document.getElementById('roomHint').textContent = text || ''; }
+
+    function setHint(text){
+      document.getElementById('roomHint').textContent = text || '';
+    }
 
     function setApiBadge(){
       const el = document.getElementById('apiBadge');
-      const short = API_URL.replace(/^https?:\/\//,'').slice(0,48) + (API_URL.length>52?'...':'');
+      const short = API_URL.replace(/^https?:\/\//,'').slice(0,44) + (API_URL.length>47?'...':'');
       el.textContent = "API: " + short;
     }
 
-    // ✅ ปิดชื่อ-สกุล 3 ตัวท้าย (ตามที่สั่ง)
-    function maskNameLast3(fullName){
-      const s = String(fullName||'').trim();
-      if(!s) return '-';
-      if(s.length <= 3) return '*'.repeat(s.length);
-      return s.slice(0, -3) + '***';
+    /****************************************************
+     * ✅ JSONP callApi (CORS-free for GitHub Pages)
+     ****************************************************/
+    function callApi(action, payload){
+      return new Promise((resolve) => {
+        const cbName = "__jsonp_cb_" + Math.random().toString(36).slice(2);
+        const timeoutMs = 15000;
+
+        const timer = setTimeout(() => {
+          cleanup();
+          resolve({ ok:false, message:"Fetch failed/timeout (jsonp)", raw:"timeout" });
+        }, timeoutMs);
+
+        function cleanup(){
+          clearTimeout(timer);
+          try { delete window[cbName]; } catch(_) { window[cbName] = undefined; }
+          if (script && script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[cbName] = (data) => {
+          cleanup();
+          resolve(data);
+        };
+
+        const url = new URL(API_URL);
+        url.searchParams.set("action", action);
+        url.searchParams.set("payload", JSON.stringify(payload || {}));
+        url.searchParams.set("callback", cbName);
+
+        const script = document.createElement("script");
+        script.src = url.toString();
+        script.onerror = () => {
+          cleanup();
+          resolve({ ok:false, message:"Fetch failed/timeout (jsonp)", raw:"script.onerror" });
+        };
+
+        document.body.appendChild(script);
+      });
     }
 
-    // ✅ แปลงเวลาให้ดูอ่านง่าย (ถ้าเป็น ISO Z จะเป็นเวลาประเทศไทย)
-    function formatDateTime(d){
-      const s = String(d||'').trim();
-      if(!s) return '-';
-      const dt = new Date(s);
-      if(!isNaN(dt.getTime())){
-        return dt.toLocaleString('th-TH', {
-          year:'numeric', month:'2-digit', day:'2-digit',
-          hour:'2-digit', minute:'2-digit'
-        });
+    /**********************
+     * PDPA helpers
+     **********************/
+    function maskFullNameLast3(name){
+      const s = String(name || '').trim();
+      if(!s) return '';
+      const n = s.length;
+      if(n <= 3) return '*'.repeat(n);
+      return s.slice(0, n-3) + '***';
+    }
+
+    function fmtMoney(n){
+      const x = Number(n||0);
+      return x.toLocaleString();
+    }
+
+    function normalizeTypeName(typeName){
+      // ทำให้ไม่แสดง "ห้องพักคู่ " ซ้ำซ้อนก็ได้ แต่ผู้ใช้ขอให้เหลือแค่ประเภท
+      return String(typeName || '').trim();
+    }
+
+    /**********************
+     * Build room types (no dorm names)
+     **********************/
+    function buildRoomList(){
+      const el = document.getElementById('roomList');
+      if(!state.roomTypes.length){
+        el.innerHTML = '<div class="muted">ยังไม่มีข้อมูลประเภทห้องพัก</div>';
+        return;
       }
-      return s;
+
+      // รวมตาม TypeName + Price (กันกรณีมีหลายหอแต่ชนประเภทเดียวกัน)
+      const group = {};
+      state.roomTypes.forEach(t=>{
+        const key = `${t.typeName}__${t.pricePerTerm}`;
+        if(!group[key]){
+          group[key] = { ...t, _ids:[t.roomTypeId], _cap: Number(t.capacityPersons||0) };
+        }else{
+          group[key]._ids.push(t.roomTypeId);
+          group[key]._cap += Number(t.capacityPersons||0);
+        }
+      });
+
+      const list = Object.values(group);
+      const dots = ['p','g','o',''];
+
+      el.innerHTML = list.map((t,i)=>`
+        <div class="chip" onclick="selectGroupType('${escapeHtml(t.typeName)}', ${Number(t.pricePerTerm||0)})">
+          <span class="dot ${dots[i%dots.length]}"></span>
+          <div style="flex:1">
+            <div style="font-weight:900">${escapeHtml(normalizeTypeName(t.typeName))}</div>
+            <div class="muted" style="font-size:12px">
+              ราคา <b>${fmtMoney(t.pricePerTerm)}</b> บาท/คน/เทอม • รองรับรวม <b>${fmtMoney(t._cap)}</b> คน
+              ${t.notes ? ` • ${escapeHtml(t.notes)}` : ``}
+            </div>
+          </div>
+          <div class="pill ok">เลือก</div>
+        </div>
+      `).join('');
     }
 
-    async function callApi(action, payload){
-      const ctrl = new AbortController();
-      const to = setTimeout(()=>ctrl.abort(), 20000);
+    function buildRoomSelect(){
+      const sel = document.getElementById('roomTypeId');
+      // ไม่แสดงชื่อหอใน dropdown
+      const options = state.roomTypes.map(t=>({
+        id: t.roomTypeId,
+        label: `${normalizeTypeName(t.typeName)} (${fmtMoney(t.pricePerTerm)} บาท/เทอม)`,
+        typeName: t.typeName,
+        price: Number(t.pricePerTerm||0),
+        cap: Number(t.capacityPersons||0),
+        notes: t.notes||''
+      }));
 
-      try{
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type":"application/json" },
-          body: JSON.stringify({ action, payload }),
-          signal: ctrl.signal
-        });
+      // เรียงให้พัดลมก่อน แอร์
+      options.sort((a,b)=> a.label.localeCompare(b.label,'th'));
 
-        const text = await res.text();
-        try { return JSON.parse(text); }
-        catch { return { ok:false, message:"API ตอบกลับไม่ใช่ JSON", raw:text, status:res.status }; }
+      sel.innerHTML = options.map(o=>`
+        <option value="${escapeHtml(o.id)}" data-type="${escapeHtml(o.typeName)}" data-price="${o.price}">
+          ${escapeHtml(o.label)}
+        </option>
+      `).join('');
 
-      }catch(err){
-        return { ok:false, message:"Fetch failed/timeout", raw:String(err) };
-      }finally{
-        clearTimeout(to);
+      sel.onchange = ()=> updateHintByType(sel.value);
+      if(options[0]) updateHintByType(options[0].id);
+    }
+
+    function selectGroupType(typeName, price){
+      // เลือก option แรกที่ตรง typeName+price
+      const sel = document.getElementById('roomTypeId');
+      const opts = Array.from(sel.options);
+      const found = opts.find(o => (o.getAttribute('data-type')||'') === typeName && Number(o.getAttribute('data-price')||0) === Number(price||0));
+      if(found){
+        sel.value = found.value;
+        updateHintByType(found.value);
+        toast('info', 'เลือกประเภทห้องพักแล้ว');
+        window.scrollTo({top: 260, behavior:'smooth'});
       }
     }
 
+    function updateHintByType(id){
+      const t = state.roomTypes.find(x=>x.roomTypeId===id);
+      if(!t){ setHint(''); return; }
+      setHint(`รองรับ ${fmtMoney(t.capacityPersons)} คน • ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท • ${t.notes||''}`);
+    }
+
+    /**********************
+     * Dashboard (vacant % = remaining/capacity *100)
+     **********************/
+    function renderDashboard(){
+      const d = state.dashboard;
+      if(!d) return;
+
+      document.getElementById('kCap').textContent = fmtMoney(d.totals?.capacity||0);
+      document.getElementById('kBooked').textContent = fmtMoney(d.totals?.booked||0);
+      document.getElementById('kRemain').textContent = fmtMoney(d.totals?.remaining||0);
+
+      // รวมตามประเภท (ไม่เอาชื่อหอ)
+      const group = {};
+      (d.cards||[]).forEach(c=>{
+        const key = `${c.typeName}__${c.pricePerTerm}`;
+        if(!group[key]){
+          group[key] = {
+            typeName: c.typeName,
+            pricePerTerm: Number(c.pricePerTerm||0),
+            capacityPersons: Number(c.capacityPersons||0),
+            booked: Number(c.booked||0),
+            remaining: Number(c.remaining||0)
+          };
+        }else{
+          group[key].capacityPersons += Number(c.capacityPersons||0);
+          group[key].booked += Number(c.booked||0);
+          group[key].remaining += Number(c.remaining||0);
+        }
+      });
+
+      const cards = Object.values(group).sort((a,b)=> String(a.typeName).localeCompare(String(b.typeName),'th'));
+      const wrap = document.getElementById('dashCards');
+
+      wrap.innerHTML = cards.map(c=>{
+        const cap = Number(c.capacityPersons||0);
+        const remain = Number(c.remaining||0);
+        const vacantPercent = cap > 0 ? Math.round((remain / cap) * 100) : 0;
+
+        return `
+          <div class="kpi">
+            <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+              <div>
+                <div style="font-weight:900">${escapeHtml(normalizeTypeName(c.typeName))}</div>
+                <div class="muted">ราคา ${fmtMoney(c.pricePerTerm)} บาท/เทอม • รองรับ ${fmtMoney(cap)} คน • จองแล้ว ${fmtMoney(c.booked)} คน • คงเหลือ ${fmtMoney(remain)} คน</div>
+              </div>
+              <div class="pill ${remain>0?'ok':'no'}">
+                ${remain>0?'🟢 ว่าง':'🔴 เต็ม'} • ${vacantPercent}%
+              </div>
+            </div>
+            <div class="bar" style="margin-top:10px;">
+              <div style="width:${vacantPercent}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**********************
+     * Public PDPA list
+     **********************/
+    function renderPublicList(){
+      const tb = document.getElementById('publicListBody');
+      const rows = (state.reservations||[])
+        .filter(r => String(r.Status||'') === 'BOOKED')
+        .slice()
+        .sort((a,b)=> String(b.CreatedAt||'').localeCompare(String(a.CreatedAt||'')));
+
+      tb.innerHTML = rows.map(r=>`
+        <tr>
+          <td>${escapeHtml(r.CreatedAt)}</td>
+          <td><b>${escapeHtml(maskFullNameLast3(r.FullName))}</b></td>
+          <td>${escapeHtml(r.Faculty)}</td>
+          <td>${escapeHtml(r.Major)}</td>
+          <td>${escapeHtml(normalizeTypeName(r.TypeName))}</td>
+          <td>${fmtMoney(r.PricePerTerm||0)}</td>
+          <td>${String(r.Status)==='BOOKED'
+              ? '<span class="pill ok">✅ BOOKED</span>'
+              : '<span class="pill no">⛔ CANCELLED</span>'}
+          </td>
+        </tr>
+      `).join('') || `<tr><td colspan="7" class="muted">ยังไม่มีผู้จอง</td></tr>`;
+    }
+
+    /**********************
+     * Load / Refresh
+     **********************/
     async function refreshAll(){
       setApiBadge();
+
       Swal.showLoading();
 
       const rt = await callApi("getRoomTypes");
@@ -539,64 +771,26 @@
       state.dashboard = d.data;
       renderDashboard();
 
-      await refreshPublicList();
-
+      // โหลดรายชื่อเพื่อแสดง PDPA (public)
+      const resv = await callApi("listReservations");
       Swal.close();
+
+      if(resv && resv.ok){
+        state.reservations = resv.data || [];
+        renderPublicList();
+      }else{
+        // ไม่ทำให้ล้มทั้งหน้า แต่แจ้งใน console
+        console.warn("listReservations failed:", resv);
+        state.reservations = [];
+        renderPublicList();
+      }
+
       toast('success','อัปเดตข้อมูลล่าสุดแล้ว');
     }
 
-    function buildRoomList(){
-      const el = document.getElementById('roomList');
-      if(!state.roomTypes.length){
-        el.innerHTML = '<div class="muted">ยังไม่มีข้อมูลประเภทห้องพัก</div>';
-        return;
-      }
-
-      // แสดงเฉพาะ "ประเภท + ราคา" (ตัดชื่อหอออก)
-      const uniq = {};
-      state.roomTypes.forEach(t=>{
-        const k = `${t.typeName}__${t.pricePerTerm}`;
-        if(!uniq[k]) uniq[k] = t;
-      });
-
-      const list = Object.values(uniq);
-      const dots = ['p','g','o',''];
-
-      el.innerHTML = list.map((t,i)=>`
-        <div class="chip" onclick="selectType('${t.roomTypeId}')">
-          <span class="dot ${dots[i%dots.length]}"></span>
-          <div>
-            <div style="font-weight:900">${escapeHtml(t.typeName)}</div>
-            <div class="muted" style="font-size:12px">
-              ราคา <b>${Number(t.pricePerTerm).toLocaleString()}</b> บาท/คน/เทอม
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function buildRoomSelect(){
-      const sel = document.getElementById('roomTypeId');
-      sel.innerHTML = state.roomTypes.map(t=>`
-        <option value="${escapeHtml(t.roomTypeId)}">${escapeHtml(t.typeName)} (${Number(t.pricePerTerm).toLocaleString()} บาท/เทอม)</option>
-      `).join('');
-      sel.onchange = ()=> updateHintByType(sel.value);
-      if(state.roomTypes[0]) updateHintByType(state.roomTypes[0].roomTypeId);
-    }
-
-    function updateHintByType(id){
-      const t = state.roomTypes.find(x=>x.roomTypeId===id);
-      if(!t){ setHint(''); return; }
-      setHint(`ราคา ${Number(t.pricePerTerm).toLocaleString()} บาท/คน/เทอม • ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท`);
-    }
-
-    function selectType(id){
-      document.getElementById('roomTypeId').value = id;
-      updateHintByType(id);
-      toast('info', 'เลือกประเภทห้องพักแล้ว');
-      window.scrollTo({top: 260, behavior:'smooth'});
-    }
-
+    /**********************
+     * Form
+     **********************/
     function clearForm(){
       ['fullName','major','phone'].forEach(id=>document.getElementById(id).value='');
       document.getElementById('faculty').value = '';
@@ -607,7 +801,7 @@
       const payload = {
         fullName: document.getElementById('fullName').value.trim(),
         major: document.getElementById('major').value.trim(),
-        faculty: document.getElementById('faculty').value,
+        faculty: document.getElementById('faculty').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         roomTypeId: document.getElementById('roomTypeId').value
       };
@@ -616,9 +810,13 @@
         await Swal.fire({icon:'warning', title:'กรอกข้อมูลไม่ครบ', text:'กรุณากรอกข้อมูลให้ครบทุกช่อง'});
         return;
       }
+      if(!/^[0-9+\-\s]{8,20}$/.test(payload.phone)){
+        await Swal.fire({icon:'warning', title:'เบอร์โทรไม่ถูกต้อง', text:'กรุณาตรวจสอบรูปแบบเบอร์โทรศัพท์'});
+        return;
+      }
 
       const type = state.roomTypes.find(x=>x.roomTypeId === payload.roomTypeId);
-      const typeText = type ? `${type.typeName} (${Number(type.pricePerTerm).toLocaleString()} บาท/เทอม)` : payload.roomTypeId;
+      const typeText = type ? `${normalizeTypeName(type.typeName)} (${fmtMoney(type.pricePerTerm)} บาท/เทอม)` : payload.roomTypeId;
 
       const c = await Swal.fire({
         title: 'ยืนยันการจอง?',
@@ -626,7 +824,6 @@
           <div><b>ชื่อ:</b> ${escapeHtml(payload.fullName)}</div>
           <div><b>สาขา:</b> ${escapeHtml(payload.major)}</div>
           <div><b>คณะ:</b> ${escapeHtml(payload.faculty)}</div>
-          <div><b>โทร:</b> ${escapeHtml(payload.phone)}</div>
           <div><b>ประเภท:</b> ${escapeHtml(typeText)}</div>
         </div>`,
         icon:'question',
@@ -648,110 +845,67 @@
       await Swal.fire({icon:'success', title:'สำเร็จ', text:`${r.message}\nรหัสการจอง: ${r.data?.resvId || '-'}`});
       clearForm();
 
+      // ✅ หลังจองเสร็จ รีเฟรชแล้วโชว์รายชื่อแบบ PDPA ทันที
       await refreshAll();
-      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+      window.scrollTo({top: document.body.scrollHeight * 0.35, behavior:'smooth'});
     }
 
-function renderDashboard(){
-  const d = state.dashboard;
-  if(!d) return;
-
-  document.getElementById('kCap').textContent = Number(d.totals?.capacity||0).toLocaleString();
-  document.getElementById('kBooked').textContent = Number(d.totals?.booked||0).toLocaleString();
-  document.getElementById('kRemain').textContent = Number(d.totals?.remaining||0).toLocaleString();
-
-  const wrap = document.getElementById('dashCards');
-  wrap.innerHTML = (d.cards||[]).map(c=>{
-    const cap = Number(c.capacityPersons||0);
-    const remain = Number(c.remaining||0);
-    const vacantPercent = cap > 0 ? Math.round((remain / cap) * 100) : 0;
-
-    return `
-      <div class="kpi">
-        <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
-          <div>
-            <div style="font-weight:900">${escapeHtml(c.typeName)}</div>
-            <div class="muted">
-              รองรับ ${cap.toLocaleString()} คน • จองแล้ว ${Number(c.booked||0).toLocaleString()} คน • คงเหลือ ${remain.toLocaleString()} คน
-            </div>
-          </div>
-          <div class="pill ${remain>0?'ok':'no'}">
-            ${remain>0?'🟢 ว่าง':'🔴 เต็ม'} • ${vacantPercent}%
-          </div>
-        </div>
-        <div class="bar" style="margin-top:10px;">
-          <div style="width:${vacantPercent}%;"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-    // ✅ รายชื่อผู้จอง: ปิดชื่อ 3 ตัวท้าย / คณะ-สาขาเต็ม / ไม่แสดงโทร (ตามที่สั่ง)
-    async function refreshPublicList(){
-      const res = await callApi("listReservations");
-      const tb = document.getElementById('publicBody');
-
-      if(!res || !res.ok){
-        tb.innerHTML = `<tr><td colspan="7" class="muted">ไม่สามารถโหลดรายชื่อผู้จองได้</td></tr>`;
+    /**********************
+     * Admin gate
+     **********************/
+    function openAdminGate(action){
+      if(state.isAdmin){
+        runAdminAction(action);
         return;
       }
-
-      const rows = (res.data || [])
-        .filter(r => String(r.Status) === 'BOOKED')
-        .slice(0, 300);
-
-      tb.innerHTML = rows.map(r=>`
-        <tr>
-          <td>${escapeHtml(formatDateTime(r.CreatedAt))}</td>
-          <td><b>${escapeHtml(maskNameLast3(r.FullName))}</b></td>
-          <td>${escapeHtml(r.Faculty || '-')}</td>
-          <td>${escapeHtml(r.Major || '-')}</td>
-          <td>${escapeHtml(r.TypeName || '-')}</td>
-          <td>${Number(r.PricePerTerm||0).toLocaleString()}</td>
-          <td><span class="pill ok">✅ BOOKED</span></td>
-        </tr>
-      `).join('') || `<tr><td colspan="7" class="muted">ยังไม่มีผู้จอง</td></tr>`;
-    }
-
-    function openAdmin(){
-      document.getElementById('adminCard').style.display = 'block';
-      document.getElementById('adminLogin').style.display = state.adminAuthed ? 'none' : 'block';
-      document.getElementById('adminTools').style.display = state.adminAuthed ? 'block' : 'none';
-      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
-    }
-    function closeAdmin(){
-      document.getElementById('adminCard').style.display = 'none';
-      hideReport();
-      window.scrollTo({top: 0, behavior:'smooth'});
-    }
-
-    // ✅ ไม่แสดง user/password ใน UI (แต่ตรวจในโค้ด)
-    function adminLogin(){
-      const u = (document.getElementById('adminUser').value || '').trim();
-      const p = (document.getElementById('adminPass').value || '').trim();
-
-      // ตรวจแบบเงียบตาม requirement
-      if(u === "sam" && p === "1900"){
-        state.adminAuthed = true;
-        document.getElementById('adminLogin').style.display = 'none';
-        document.getElementById('adminTools').style.display = 'block';
-        toast('success', 'เข้าสู่ระบบหลังบ้านสำเร็จ');
-      }else{
-        Swal.fire({icon:'error', title:'เข้าสู่ระบบไม่สำเร็จ', text:'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'});
-      }
-    }
-    function adminLogout(){
-      state.adminAuthed = false;
-      document.getElementById('adminLogin').style.display = 'block';
-      document.getElementById('adminTools').style.display = 'none';
+      state.pendingAdminAction = action;
       document.getElementById('adminUser').value = '';
       document.getElementById('adminPass').value = '';
-      hideReport();
-      toast('info', 'ออกจากระบบแล้ว');
+      document.getElementById('adminMask').style.display = 'flex';
+      document.getElementById('adminUser').focus();
     }
 
-    /******** Admin tools ********/
+    function closeAdminModal(){
+      document.getElementById('adminMask').style.display = 'none';
+      state.pendingAdminAction = null;
+    }
+
+    function maskClose(e){
+      // click outside modal
+      closeAdminModal();
+    }
+
+    function adminLogin(){
+      const u = String(document.getElementById('adminUser').value || '').trim();
+      const p = String(document.getElementById('adminPass').value || '').trim();
+
+      if(u === __ADMIN_USER && p === __ADMIN_PASS){
+        state.isAdmin = true;
+        document.getElementById('adminBadge').classList.add('on');
+        closeAdminModal();
+        const act = state.pendingAdminAction;
+        state.pendingAdminAction = null;
+        runAdminAction(act);
+      }else{
+        Swal.fire({icon:'error', title:'ไม่สำเร็จ', text:'ข้อมูลผู้ดูแลระบบไม่ถูกต้อง'});
+      }
+    }
+
+    async function runAdminAction(action){
+      if(action === 'test'){
+        await testConnection();
+        return;
+      }
+      if(action === 'excel'){
+        await openExcel();
+        return;
+      }
+      if(action === 'report'){
+        await openReport();
+        return;
+      }
+    }
+
     async function testConnection(){
       Swal.showLoading();
       const r = await callApi("getDashboard");
@@ -770,24 +924,27 @@ function renderDashboard(){
       window.open(url, "_blank");
     }
 
-    async function openAdminReport(){
-      if(!state.adminAuthed) return openAdmin();
+    async function openReport(){
       document.getElementById('reportCard').style.display = 'block';
+      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+
       Swal.showLoading();
       const res = await callApi("listReservations");
       Swal.close();
+
       if(!res || !res.ok){
         await Swal.fire({icon:'error', title:'โหลดรายงานไม่สำเร็จ', text: res?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
       state.reservations = res.data || [];
       renderReport();
-      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+      // อัปเดต public list ด้วย เผื่อหลังบ้านรีเฟรช
+      renderPublicList();
     }
 
     function hideReport(){
-      const rc = document.getElementById('reportCard');
-      if(rc) rc.style.display = 'none';
+      document.getElementById('reportCard').style.display = 'none';
+      window.scrollTo({top: 0, behavior:'smooth'});
     }
 
     function renderReport(){
@@ -810,8 +967,8 @@ function renderDashboard(){
           <td>${escapeHtml(r.Major)}</td>
           <td>${escapeHtml(r.Faculty)}</td>
           <td>${escapeHtml(r.Phone)}</td>
-          <td>${escapeHtml(r.TypeName || '-')}</td>
-          <td>${Number(r.PricePerTerm||0).toLocaleString()}</td>
+          <td>${escapeHtml(normalizeTypeName(r.TypeName))}</td>
+          <td>${fmtMoney(r.PricePerTerm||0)}</td>
           <td>${String(r.Status)==='BOOKED'
             ? '<span class="pill ok">✅ BOOKED</span>'
             : '<span class="pill no">⛔ CANCELLED</span>'}
