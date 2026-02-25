@@ -407,16 +407,20 @@
       }
     }
 
-    // ✅ กันหมุนค้าง + debug raw response
+    // ✅ FIX: ส่งแบบ x-www-form-urlencoded เพื่อตัด CORS preflight (ไม่ timeout)
     async function callApi(action, payload){
       const ctrl = new AbortController();
       const to = setTimeout(()=>ctrl.abort(), 15000);
 
       try{
+        const form = new URLSearchParams();
+        form.set("action", action);
+        form.set("payload", JSON.stringify(payload || {}));
+
         const res = await fetch(API_URL, {
           method: "POST",
-          headers: { "Content-Type":"application/json" },
-          body: JSON.stringify({ action, payload }),
+          headers: { "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+          body: form.toString(),
           signal: ctrl.signal
         });
 
