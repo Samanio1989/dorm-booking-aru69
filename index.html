@@ -38,7 +38,6 @@
         close: ()=>{}
       };
 
-      // ✅ toast แบบไม่ใช้ Swal (กัน CSP ชัวร์)
       window.toast = function(icon, title){
         console.log(`[${icon}] ${title}`);
       };
@@ -154,14 +153,15 @@
     .chips{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
     .chip{
       background:#fff; border:1px solid var(--line);
-      border-radius: 999px; padding:10px 12px;
-      display:flex; gap:10px; align-items:center;
+      border-radius: 18px; padding:12px 12px;
+      display:flex; gap:10px; align-items:flex-start;
       box-shadow: 0 8px 18px rgba(31,41,55,.06);
       cursor:pointer;
       transition: .12s transform, .12s box-shadow;
+      min-width: 260px;
     }
     .chip:hover{ transform: translateY(-1px); box-shadow: 0 14px 28px rgba(31,41,55,.10); }
-    .dot{ width:10px; height:10px; border-radius:99px; background:var(--p2); }
+    .dot{ width:10px; height:10px; border-radius:99px; background:var(--p2); margin-top:6px; }
     .dot.g{ background:var(--p3); }
     .dot.o{ background:var(--p4); }
     .dot.p{ background:var(--p1); }
@@ -230,6 +230,69 @@
       font-weight:800;
       font-size:12px;
     }
+
+    /* Admin panel */
+    .adminBox{
+      margin-top:12px;
+      padding:12px;
+      border:1px solid rgba(17,24,39,.08);
+      border-radius:16px;
+      background:rgba(255,255,255,.7);
+    }
+    .adminRow{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    }
+    .adminRow input{
+      padding:11px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      font-family:'Kanit',sans-serif;
+      min-width:220px;
+      background:#fff;
+    }
+    .adminBadge{
+      display:inline-flex; gap:8px; align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#fff;
+      border:1px solid var(--line);
+      font-weight:900;
+      font-size:12px;
+    }
+
+    /* PDPA list */
+    .pdpaWrap{
+      margin-top:14px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fff;
+      overflow:hidden;
+    }
+    .pdpaHead{
+      padding:12px;
+      background:#fafafa;
+      border-bottom:1px solid #f3f4f6;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .pdpaList{
+      max-height: 360px;
+      overflow:auto;
+    }
+    .pdpaItem{
+      padding:12px;
+      border-bottom:1px solid #f3f4f6;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .pdpaItem:last-child{ border-bottom:0; }
+    .pdpaName{ font-weight:900; }
+    .pdpaMeta{ color:var(--muted); font-size:12px; }
   </style>
 </head>
 
@@ -244,21 +307,21 @@
         <div class="logo">🏠</div>
         <div class="title">
           <h1>ระบบจองหอพักนักศึกษา 2569</h1>
-          <div class="sub">หน้าเว็บ GitHub Pages • ไม่ต้องล็อกอิน Gmail • เชื่อมต่อ Apps Script API</div>
+          <div class="sub">หน้าเว็บ GitHub Pages • จองออนไลน์ • มีระบบหลังบ้านสำหรับเจ้าหน้าที่</div>
         </div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
         <button class="btn soft" onclick="refreshAll()">🔄 รีเฟรช</button>
-        <button class="btn" onclick="openReport()">📋 รายงาน</button>
+        <span class="adminBadge" id="adminStatus">🔒 โหมดนักศึกษา</span>
       </div>
     </div>
 
     <div class="grid">
       <!-- LEFT -->
       <div class="card">
-        <h2>📌 รายละเอียดห้องพัก & ประเภทห้อง (เลือกเพื่อจอง)</h2>
+        <h2>📌 ประเภทห้องพัก (เลือกเพื่อจอง)</h2>
         <div class="muted">
-          ข้อมูลอ้างอิง: หอพัก 4/5/6 • ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟรายเดือน หน่วยละ 7 บาท
+          ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท
         </div>
 
         <div class="hintBox">
@@ -301,12 +364,36 @@
         <div class="actions">
           <button class="btn grad" onclick="submitReservation()">✅ ยืนยันการจอง</button>
           <button class="btn soft" onclick="clearForm()">🧹 ล้างฟอร์ม</button>
-          <button class="btn warn" onclick="testConnection()">🧪 ทดสอบเชื่อมต่อ API</button>
+        </div>
+
+        <!-- PDPA list after booking -->
+        <div class="pdpaWrap" id="pdpaBox" style="display:none;">
+          <div class="pdpaHead">
+            <div>
+              <div style="font-weight:900">📣 รายชื่อผู้จองทั้งหมด (ปกปิดข้อมูลตาม PDPA)</div>
+              <div class="muted">แสดงข้อมูลแบบย่อเพื่อความเป็นส่วนตัว</div>
+            </div>
+            <button class="btn soft" onclick="loadPdpaList()">🔄 อัปเดตรายชื่อ</button>
+          </div>
+          <div class="pdpaList" id="pdpaList"></div>
         </div>
 
         <div class="foot">
           <div class="small">ตั้งค่า API ที่บรรทัดบนสุดของสคริปต์ในไฟล์นี้ (API_URL)</div>
           <code class="badge" id="apiBadge">API: ยังไม่ตั้งค่า</code>
+        </div>
+
+        <!-- Admin login (hidden password) -->
+        <div class="adminBox">
+          <div style="font-weight:900">🛠 ระบบเจ้าหน้าที่</div>
+          <div class="muted" style="margin-top:4px;">สำหรับการดูรายงาน / ส่งออก Excel / ทดสอบระบบ</div>
+          <div class="adminRow" style="margin-top:10px;">
+            <input id="adminUser" type="text" placeholder="ชื่อผู้ใช้งาน">
+            <input id="adminPass" type="password" placeholder="รหัสผ่าน">
+            <button class="btn" onclick="adminLogin()">เข้าสู่ระบบ</button>
+            <button class="btn soft" onclick="adminLogout()">ออกจากระบบ</button>
+          </div>
+          <div class="small" style="margin-top:8px;">* สิทธิ์จะถูกเก็บในเครื่อง (session) เท่านั้น</div>
         </div>
       </div>
 
@@ -330,32 +417,34 @@
 
         <div id="dashCards" style="margin-top:12px; display:grid; gap:10px;"></div>
 
+        <!-- Admin-only actions -->
         <div class="actions" style="margin-top:14px;">
-          <button class="btn soft" onclick="openExcel()">📥 ส่งออกเป็น Excel</button>
-          <button class="btn" onclick="openReport()">📋 ดูรายงานรายชื่อ</button>
+          <button class="btn warn" onclick="testConnectionAdmin()">🧪 ทดสอบเชื่อมต่อ API</button>
+          <button class="btn soft" onclick="openExcelAdmin()">📥 ส่งออกเป็น Excel</button>
+          <button class="btn" onclick="openReportAdmin()">📋 รายงาน (หลังบ้าน)</button>
         </div>
 
         <div class="muted" style="margin-top:10px;">
-          หมายเหตุ: Excel export จะเปิดลิงก์ดาวน์โหลดจาก Google Sheets (ผู้เปิดลิงก์ต้องมีสิทธิ์เข้าถึงไฟล์ชีต)
+          หมายเหตุ: เมนูหลังบ้านจะใช้งานได้เมื่อเข้าสู่ระบบเจ้าหน้าที่
         </div>
       </div>
     </div>
 
-    <!-- REPORT -->
+    <!-- REPORT (Admin only) -->
     <div id="reportCard" class="card" style="margin-top:18px; display:none;">
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
         <div>
-          <h2 style="margin:0;">📋 รายงานรายชื่อผู้จองทั้งหมด</h2>
+          <h2 style="margin:0;">📋 รายงานรายชื่อผู้จองทั้งหมด (หลังบ้าน)</h2>
           <div class="muted">แสดงรายการทั้งหมดในระบบ (BOOKED / CANCELLED)</div>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn soft" onclick="hideReport()">✖ ปิดรายงาน</button>
-          <button class="btn" onclick="openExcel()">📥 ส่งออก Excel</button>
+          <button class="btn" onclick="openExcelAdmin()">📥 ส่งออก Excel</button>
         </div>
       </div>
 
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-        <input id="q" type="text" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / หอ / ประเภทห้อง / รหัสการจอง"
+        <input id="q" type="text" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / ประเภทห้อง / รหัสการจอง"
                style="flex:1; min-width:240px; padding:11px 12px; border-radius:14px; border:1px solid var(--line); font-family:'Kanit',sans-serif;">
         <button class="btn soft" onclick="renderReport()">🔎 ค้นหา</button>
         <button class="btn soft" onclick="document.getElementById('q').value=''; renderReport();">🧼 ล้างค้นหา</button>
@@ -371,7 +460,6 @@
               <th>สาขา</th>
               <th>คณะ</th>
               <th>โทร</th>
-              <th>หอ</th>
               <th>ประเภท</th>
               <th>ราคา/เทอม</th>
               <th>สถานะ</th>
@@ -389,6 +477,10 @@
      **********************/
     const API_URL = "https://script.google.com/macros/s/AKfycbx27u8fgUh4hIby9_OzOmRJbn3fTUILLy9FMnB5We1qga17XMcimCIDdTpJiYDX5UiA5g/exec";
 
+    // Admin credential (hidden from UI; do not display)
+    const ADMIN_USER = "sam";
+    const ADMIN_PASS = "1900";
+
     const state = { roomTypes: [], dashboard: null, reservations: [] };
 
     function escapeHtml(s){
@@ -398,7 +490,7 @@
 
     function setApiBadge(){
       const el = document.getElementById('apiBadge');
-      if(!API_URL){
+      if(!API_URL || API_URL.includes("PASTE_YOUR")){
         el.textContent = "API: ยังไม่ตั้งค่า";
         el.style.opacity = .9;
       }else{
@@ -407,42 +499,75 @@
       }
     }
 
-    // ✅ FIX: ส่งแบบ x-www-form-urlencoded เพื่อตัด CORS preflight (ไม่ timeout)
+    function isAdmin(){
+      return sessionStorage.getItem("isAdmin") === "1";
+    }
+    function setAdminUI(){
+      const badge = document.getElementById("adminStatus");
+      if(isAdmin()){
+        badge.textContent = "🔓 โหมดเจ้าหน้าที่";
+        badge.style.background = "#ecfdf5";
+        badge.style.borderColor = "#bbf7d0";
+      }else{
+        badge.textContent = "🔒 โหมดนักศึกษา";
+        badge.style.background = "#fff";
+        badge.style.borderColor = "var(--line)";
+      }
+    }
+
     async function callApi(action, payload){
       const ctrl = new AbortController();
       const to = setTimeout(()=>ctrl.abort(), 15000);
 
       try{
-        const form = new URLSearchParams();
-        form.set("action", action);
-        form.set("payload", JSON.stringify(payload || {}));
-
         const res = await fetch(API_URL, {
           method: "POST",
-          headers: { "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
-          body: form.toString(),
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({ action, payload }),
           signal: ctrl.signal
         });
 
         const text = await res.text();
-        console.log("API status:", res.status, "action:", action);
-        console.log("API raw:", text);
-
         try { return JSON.parse(text); }
         catch { return { ok:false, message:"API ตอบกลับไม่ใช่ JSON", raw:text, status:res.status }; }
 
       }catch(err){
-        console.error("Fetch error:", err);
         return { ok:false, message:"Fetch failed/timeout", raw:String(err) };
       }finally{
         clearTimeout(to);
       }
     }
 
+    /**********************
+     * PDPA masking helpers
+     **********************/
+    function maskName(name){
+      name = String(name||'').trim();
+      if(!name) return '';
+      // keep first 2 chars, mask rest except last 1 word initial
+      // simple: show first 2 chars then ** then last 2 chars (if long)
+      const n = name.replace(/\s+/g,' ').trim();
+      if(n.length <= 3) return n[0] + "**";
+      if(n.length <= 6) return n.slice(0,2) + "**";
+      return n.slice(0,2) + "**" + n.slice(-2);
+    }
+    function maskPhone(phone){
+      phone = String(phone||'').replace(/\s+/g,'');
+      if(phone.length < 6) return phone ? phone[0] + "****" : "";
+      return phone.slice(0,2) + "******" + phone.slice(-2);
+    }
+
+    function simplifyType(typeName){
+      const t = String(typeName||'').trim();
+      // remove dorm references if any
+      return t;
+    }
+
     async function refreshAll(){
       setApiBadge();
-      if(!API_URL){
-        toast('warning', 'ยังไม่ได้ตั้งค่า API_URL');
+
+      if(!API_URL || API_URL.includes("PASTE_YOUR")){
+        await Swal.fire({icon:'warning', title:'ยังไม่ได้ตั้งค่า API', text:'กรุณาตั้งค่า API_URL ในไฟล์ index.html ให้ถูกต้อง'});
         return;
       }
 
@@ -454,7 +579,26 @@
         await Swal.fire({icon:'error', title:'โหลดประเภทห้องไม่สำเร็จ', text: rt?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
-      state.roomTypes = rt.data || [];
+
+      // ✅ ข้อ 1: รวมประเภทห้อง โดยตัดชื่อหอออก เหลือประเภท + ราคา
+      const rawTypes = rt.data || [];
+      const map = {};
+      rawTypes.forEach(t=>{
+        const key = `${String(t.typeName||'').trim()}|${Number(t.pricePerTerm||0)}`;
+        if(!map[key]){
+          map[key] = {
+            roomTypeId: t.roomTypeId, // ใช้ตัวแรกเป็นตัวแทน
+            typeName: String(t.typeName||'').trim(),
+            pricePerTerm: Number(t.pricePerTerm||0),
+            capacityPersons: 0,
+            notes: ''
+          };
+        }
+        map[key].capacityPersons += Number(t.capacityPersons||0);
+        if(t.notes && !map[key].notes) map[key].notes = String(t.notes);
+      });
+      state.roomTypes = Object.values(map);
+
       buildRoomList();
       buildRoomSelect();
 
@@ -464,7 +608,39 @@
         await Swal.fire({icon:'error', title:'โหลด Dashboard ไม่สำเร็จ', text: d?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
-      state.dashboard = d.data;
+
+      // Dashboard cards: also simplify types (aggregate by type+price)
+      const cards = d.data?.cards || [];
+      const dashMap = {};
+      cards.forEach(c=>{
+        const key = `${String(c.typeName||'').trim()}|${Number(c.pricePerTerm||0)}`;
+        if(!dashMap[key]){
+          dashMap[key] = {
+            typeName: String(c.typeName||'').trim(),
+            pricePerTerm: Number(c.pricePerTerm||0),
+            capacityPersons: 0,
+            booked: 0,
+            remaining: 0
+          };
+        }
+        dashMap[key].capacityPersons += Number(c.capacityPersons||0);
+        dashMap[key].booked += Number(c.booked||0);
+      });
+      const dashCards = Object.values(dashMap).map(x=>{
+        x.remaining = Math.max(0, x.capacityPersons - x.booked);
+        x.percent = x.capacityPersons>0 ? Math.round((x.booked/x.capacityPersons)*100) : 0;
+        return x;
+      });
+
+      const totals = dashCards.reduce((acc,c)=>{
+        acc.capacity += c.capacityPersons;
+        acc.booked += c.booked;
+        acc.remaining += c.remaining;
+        return acc;
+      }, {capacity:0, booked:0, remaining:0});
+
+      state.dashboard = { totals, cards: dashCards };
+
       renderDashboard();
       toast('success','อัปเดตข้อมูลล่าสุดแล้ว');
     }
@@ -477,13 +653,13 @@
       }
       const dots = ['p','g','o',''];
       el.innerHTML = state.roomTypes.map((t,i)=>`
-        <div class="chip" onclick="selectType('${t.roomTypeId}')">
+        <div class="chip" onclick="selectType('${escapeHtml(t.roomTypeId)}')">
           <span class="dot ${dots[i%dots.length]}"></span>
           <div>
-            <div style="font-weight:900">${escapeHtml(t.dorm)} • ${escapeHtml(t.typeName)}</div>
+            <div style="font-weight:900">${escapeHtml(simplifyType(t.typeName))}</div>
             <div class="muted" style="font-size:12px">
-              ราคา <b>${Number(t.pricePerTerm).toLocaleString()}</b> บาท/คน/เทอม • รองรับ <b>${Number(t.capacityPersons).toLocaleString()}</b> คน
-              • ${escapeHtml(t.notes||'')}
+              ราคา <b>${Number(t.pricePerTerm||0).toLocaleString()}</b> บาท/คน/เทอม
+              • รองรับรวม <b>${Number(t.capacityPersons||0).toLocaleString()}</b> คน
             </div>
           </div>
         </div>
@@ -493,7 +669,7 @@
     function buildRoomSelect(){
       const sel = document.getElementById('roomTypeId');
       sel.innerHTML = state.roomTypes.map(t=>`
-        <option value="${escapeHtml(t.roomTypeId)}">${escapeHtml(t.dorm)} - ${escapeHtml(t.typeName)} (${Number(t.pricePerTerm).toLocaleString()} บาท/เทอม)</option>
+        <option value="${escapeHtml(t.roomTypeId)}">${escapeHtml(simplifyType(t.typeName))} (${Number(t.pricePerTerm||0).toLocaleString()} บาท/เทอม)</option>
       `).join('');
       sel.onchange = ()=> updateHintByType(sel.value);
       if(state.roomTypes[0]) updateHintByType(state.roomTypes[0].roomTypeId);
@@ -502,7 +678,7 @@
     function updateHintByType(id){
       const t = state.roomTypes.find(x=>x.roomTypeId===id);
       if(!t){ setHint(''); return; }
-      setHint(`รองรับ ${Number(t.capacityPersons).toLocaleString()} คน • ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท • ${t.notes||''}`);
+      setHint(`ราคา ${Number(t.pricePerTerm||0).toLocaleString()} บาท/คน/เทอม • รองรับรวม ${Number(t.capacityPersons||0).toLocaleString()} คน • ห้องน้ำรวม • ค่าน้ำ 300 บาท/คน/เทอม • ค่าไฟหน่วยละ 7 บาท`);
     }
 
     function selectType(id){
@@ -532,7 +708,7 @@
       }
 
       const type = state.roomTypes.find(x=>x.roomTypeId === payload.roomTypeId);
-      const typeText = type ? `${type.dorm} - ${type.typeName} (${Number(type.pricePerTerm).toLocaleString()} บาท/เทอม)` : payload.roomTypeId;
+      const typeText = type ? `${simplifyType(type.typeName)} (${Number(type.pricePerTerm||0).toLocaleString()} บาท/เทอม)` : payload.roomTypeId;
 
       const c = await Swal.fire({
         title: 'ยืนยันการจอง?',
@@ -541,7 +717,7 @@
           <div><b>สาขา:</b> ${escapeHtml(payload.major)}</div>
           <div><b>คณะ:</b> ${escapeHtml(payload.faculty)}</div>
           <div><b>โทร:</b> ${escapeHtml(payload.phone)}</div>
-          <div><b>ประเภท:</b> ${escapeHtml(typeText)}</div>
+          <div><b>ประเภทห้อง:</b> ${escapeHtml(typeText)}</div>
         </div>`,
         icon:'question',
         showCancelButton:true,
@@ -559,9 +735,14 @@
         return;
       }
 
-      await Swal.fire({icon:'success', title:'สำเร็จ', text:`${r.message}\nรหัสการจอง: ${r.data?.resvId || '-'}`});
+      await Swal.fire({icon:'success', title:'จองสำเร็จ ✅', text:`ระบบบันทึกการจองเรียบร้อย\nรหัสการจอง: ${r.data?.resvId || '-'}`});
       clearForm();
       await refreshAll();
+
+      // ✅ ข้อ 3: แสดงรายชื่อผู้จองทั้งหมด (PDPA) หลังจองเสร็จ
+      document.getElementById('pdpaBox').style.display = 'block';
+      await loadPdpaList();
+      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
     }
 
     function renderDashboard(){
@@ -577,8 +758,8 @@
         <div class="kpi">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
             <div>
-              <div style="font-weight:900">${escapeHtml(c.dorm)} • ${escapeHtml(c.typeName)}</div>
-              <div class="muted">รองรับ ${Number(c.capacityPersons).toLocaleString()} คน • จองแล้ว ${Number(c.booked).toLocaleString()} คน • คงเหลือ ${Number(c.remaining).toLocaleString()} คน</div>
+              <div style="font-weight:900">${escapeHtml(simplifyType(c.typeName))}</div>
+              <div class="muted">ราคา ${Number(c.pricePerTerm||0).toLocaleString()} บาท/เทอม • รองรับรวม ${Number(c.capacityPersons||0).toLocaleString()} คน • จองแล้ว ${Number(c.booked||0).toLocaleString()} คน • คงเหลือ ${Number(c.remaining||0).toLocaleString()} คน</div>
             </div>
             <div class="pill ${c.remaining>0?'ok':'no'}">
               ${c.remaining>0?'🟢 ว่าง':'🔴 เต็ม'} • ${Number(c.percent||0)}%
@@ -589,7 +770,86 @@
       `).join('');
     }
 
-    async function openReport(){
+    async function loadPdpaList(){
+      const res = await callApi("listReservations");
+      if(!res || !res.ok){
+        await Swal.fire({icon:'error', title:'โหลดรายชื่อไม่สำเร็จ', text: res?.message || 'ไม่สามารถติดต่อ API'});
+        return;
+      }
+      const all = res.data || [];
+      // show BOOKED only, latest first
+      const rows = all.filter(x=>String(x.Status)==='BOOKED');
+
+      const el = document.getElementById("pdpaList");
+      el.innerHTML = rows.map(r=>`
+        <div class="pdpaItem">
+          <div>
+            <div class="pdpaName">${escapeHtml(maskName(r.FullName))}</div>
+            <div class="pdpaMeta">${escapeHtml(maskPhone(r.Phone))} • ${escapeHtml(r.Faculty||'')} • ${escapeHtml(r.Major||'')}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:900">${escapeHtml(simplifyType(r.TypeName||''))}</div>
+            <div class="pdpaMeta">${Number(r.PricePerTerm||0).toLocaleString()} บาท/เทอม</div>
+          </div>
+        </div>
+      `).join('') || `<div style="padding:12px;" class="muted">ยังไม่มีผู้จอง</div>`;
+    }
+
+    /**********************
+     * Admin-only features
+     **********************/
+    async function adminLogin(){
+      const u = (document.getElementById("adminUser").value || '').trim();
+      const p = (document.getElementById("adminPass").value || '').trim();
+
+      if(u === ADMIN_USER && p === ADMIN_PASS){
+        sessionStorage.setItem("isAdmin","1");
+        setAdminUI();
+        await Swal.fire({icon:'success', title:'เข้าสู่ระบบสำเร็จ', text:'พร้อมใช้งานเมนูหลังบ้าน'});
+      }else{
+        sessionStorage.removeItem("isAdmin");
+        setAdminUI();
+        await Swal.fire({icon:'error', title:'เข้าสู่ระบบไม่สำเร็จ', text:'กรุณาตรวจสอบข้อมูลอีกครั้ง'});
+      }
+      document.getElementById("adminPass").value = '';
+    }
+
+    function adminLogout(){
+      sessionStorage.removeItem("isAdmin");
+      setAdminUI();
+      Swal.fire({icon:'success', title:'ออกจากระบบแล้ว'});
+    }
+
+    function requireAdmin_(){
+      if(!isAdmin()){
+        Swal.fire({icon:'warning', title:'เฉพาะเจ้าหน้าที่', text:'กรุณาเข้าสู่ระบบเจ้าหน้าที่ก่อนใช้งานเมนูนี้'});
+        return false;
+      }
+      return true;
+    }
+
+    async function testConnectionAdmin(){
+      if(!requireAdmin_()) return;
+      Swal.showLoading();
+      const r = await callApi("getDashboard");
+      Swal.close();
+      if(r && r.ok) await Swal.fire({icon:'success', title:'เชื่อมต่อสำเร็จ ✅', text:'API พร้อมใช้งาน'});
+      else await Swal.fire({icon:'error', title:'เชื่อมต่อไม่สำเร็จ', text: r?.message || 'เรียก API ไม่ได้'});
+    }
+
+    async function openExcelAdmin(){
+      if(!requireAdmin_()) return;
+      const res = await callApi("getExportExcelUrl");
+      const url = res?.data?.url;
+      if(!url){
+        await Swal.fire({icon:'error', title:'ไม่สำเร็จ', text: res?.message || 'ไม่พบลิงก์ส่งออก Excel'});
+        return;
+      }
+      window.open(url, "_blank");
+    }
+
+    async function openReportAdmin(){
+      if(!requireAdmin_()) return;
       document.getElementById('reportCard').style.display = 'block';
       window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
 
@@ -616,7 +876,7 @@
         if(!q) return true;
         const s = [
           r.CreatedAt, r.ResvID, r.FullName, r.Major, r.Faculty, r.Phone,
-          r.Dorm, r.TypeName, r.RoomTypeID, r.Status
+          r.TypeName, r.RoomTypeID, r.Status
         ].map(x=>String(x||'').toLowerCase()).join(' ');
         return s.includes(q);
       });
@@ -630,38 +890,20 @@
           <td>${escapeHtml(r.Major)}</td>
           <td>${escapeHtml(r.Faculty)}</td>
           <td>${escapeHtml(r.Phone)}</td>
-          <td>${escapeHtml(r.Dorm)}</td>
-          <td>${escapeHtml(r.TypeName)}</td>
+          <td>${escapeHtml(simplifyType(r.TypeName||''))}</td>
           <td>${Number(r.PricePerTerm||0).toLocaleString()}</td>
           <td>${String(r.Status)==='BOOKED'
             ? '<span class="pill ok">✅ BOOKED</span>'
             : '<span class="pill no">⛔ CANCELLED</span>'}
           </td>
         </tr>
-      `).join('') || `<tr><td colspan="10" class="muted">ไม่พบข้อมูล</td></tr>`;
-    }
-
-    async function openExcel(){
-      const res = await callApi("getExportExcelUrl");
-      const url = res?.data?.url;
-      if(!url){
-        await Swal.fire({icon:'error', title:'ไม่สำเร็จ', text: res?.message || 'ไม่พบลิงก์ส่งออก Excel'});
-        return;
-      }
-      window.open(url, "_blank");
-    }
-
-    async function testConnection(){
-      Swal.showLoading();
-      const r = await callApi("getDashboard");
-      Swal.close();
-      if(r && r.ok) await Swal.fire({icon:'success', title:'เชื่อมต่อสำเร็จ ✅', text:'API พร้อมใช้งาน'});
-      else await Swal.fire({icon:'error', title:'เชื่อมต่อไม่สำเร็จ', text: r?.message || 'เรียก API ไม่ได้'});
+      `).join('') || `<tr><td colspan="9" class="muted">ไม่พบข้อมูล</td></tr>`;
     }
 
     // init
     setApiBadge();
-    if(API_URL) refreshAll();
+    setAdminUI();
+    if(API_URL && !API_URL.includes("PASTE_YOUR")) refreshAll();
   </script>
 </body>
 </html>
