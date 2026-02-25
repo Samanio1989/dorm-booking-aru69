@@ -231,8 +231,8 @@
     }
 
     .publicWrap{ margin-top:14px; }
-    .miniTable{ min-width: 720px; }
-    @media (max-width:560px){ .miniTable{ min-width: 620px; } }
+    .miniTable{ min-width: 860px; } /* ✅ ปรับตามคอลัมน์ใหม่ (ไม่มีโทร) */
+    @media (max-width:560px){ .miniTable{ min-width: 760px; } }
   </style>
 </head>
 
@@ -247,7 +247,7 @@
         <div class="logo">🏠</div>
         <div class="title">
           <h1>ระบบจองหอพักนักศึกษา 2569</h1>
-          <div class="sub">หน้าเว็บ GitHub Pages • จองออนไลน์ • เชื่อมต่อ Apps Script API</div>
+          <div class="sub">เฉพาะนักศึกษาหญิงเท่านั้น</div>
         </div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
@@ -291,7 +291,7 @@
             <input id="major" type="text" placeholder="เช่น นิเทศศาสตร์ดิจิทัล">
           </div>
 
-          <!-- ✅ เปลี่ยนคณะเป็น dropdown -->
+          <!-- ✅ คณะเป็น dropdown ตามที่สั่ง -->
           <div class="field">
             <label for="faculty">คณะ</label>
             <select id="faculty">
@@ -320,9 +320,12 @@
           <code class="badge" id="apiBadge">API: -</code>
         </div>
 
+        <!-- ✅ รายชื่อผู้จองแบบ PDPA (แก้ตามที่สั่ง) -->
         <div class="publicWrap">
           <h2 style="margin-top:16px;">👥 รายชื่อผู้จอง (แสดงแบบปกปิดข้อมูล)</h2>
-          <div class="muted">ปกปิดชื่อ-สกุล 3 ตัวท้าย • แสดงคณะ/สาขาเต็ม • ไม่แสดงเบอร์โทร</div>
+          <div class="muted">
+            ปกปิดชื่อ-สกุล <b>3 ตัวท้าย</b> • แสดงคณะ/สาขาเต็ม • <b>ไม่แสดงเบอร์โทร</b>
+          </div>
 
           <div class="tableWrap" style="margin-top:10px;">
             <table class="miniTable">
@@ -370,7 +373,7 @@
       </div>
     </div>
 
-    <!-- ADMIN PANEL -->
+    <!-- ADMIN PANEL (ซ่อน user/pass ไม่โชว์ใน UI ตามที่สั่ง) -->
     <div id="adminCard" class="card" style="margin-top:18px; display:none;">
       <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
         <div>
@@ -451,6 +454,9 @@
   </div>
 
   <script>
+    /**********************
+     *  ✅ ตั้งค่า API
+     **********************/
     const API_URL = "https://script.google.com/macros/s/AKfycbx27u8fgUh4hIby9_OzOmRJbn3fTUILLy9FMnB5We1qga17XMcimCIDdTpJiYDX5UiA5g/exec";
     const state = { roomTypes: [], dashboard: null, reservations: [], adminAuthed:false };
 
@@ -465,11 +471,26 @@
       el.textContent = "API: " + short;
     }
 
-    function maskName(fullName){
+    // ✅ ปิดชื่อ-สกุล 3 ตัวท้าย (ตามที่สั่ง)
+    function maskNameLast3(fullName){
       const s = String(fullName||'').trim();
       if(!s) return '-';
       if(s.length <= 3) return '*'.repeat(s.length);
       return s.slice(0, -3) + '***';
+    }
+
+    // ✅ แปลงเวลาให้ดูอ่านง่าย (ถ้าเป็น ISO Z จะเป็นเวลาประเทศไทย)
+    function formatDateTime(d){
+      const s = String(d||'').trim();
+      if(!s) return '-';
+      const dt = new Date(s);
+      if(!isNaN(dt.getTime())){
+        return dt.toLocaleString('th-TH', {
+          year:'numeric', month:'2-digit', day:'2-digit',
+          hour:'2-digit', minute:'2-digit'
+        });
+      }
+      return s;
     }
 
     async function callApi(action, payload){
@@ -485,14 +506,10 @@
         });
 
         const text = await res.text();
-        console.log("API status:", res.status, "action:", action);
-        console.log("API raw:", text);
-
         try { return JSON.parse(text); }
         catch { return { ok:false, message:"API ตอบกลับไม่ใช่ JSON", raw:text, status:res.status }; }
 
       }catch(err){
-        console.error("Fetch error:", err);
         return { ok:false, message:"Fetch failed/timeout", raw:String(err) };
       }finally{
         clearTimeout(to);
@@ -535,6 +552,7 @@
         return;
       }
 
+      // แสดงเฉพาะ "ประเภท + ราคา" (ตัดชื่อหอออก)
       const uniq = {};
       state.roomTypes.forEach(t=>{
         const k = `${t.typeName}__${t.pricePerTerm}`;
@@ -634,31 +652,42 @@
       window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
     }
 
-    function renderDashboard(){
-      const d = state.dashboard;
-      if(!d) return;
+function renderDashboard(){
+  const d = state.dashboard;
+  if(!d) return;
 
-      document.getElementById('kCap').textContent = Number(d.totals?.capacity||0).toLocaleString();
-      document.getElementById('kBooked').textContent = Number(d.totals?.booked||0).toLocaleString();
-      document.getElementById('kRemain').textContent = Number(d.totals?.remaining||0).toLocaleString();
+  document.getElementById('kCap').textContent = Number(d.totals?.capacity||0).toLocaleString();
+  document.getElementById('kBooked').textContent = Number(d.totals?.booked||0).toLocaleString();
+  document.getElementById('kRemain').textContent = Number(d.totals?.remaining||0).toLocaleString();
 
-      const wrap = document.getElementById('dashCards');
-      wrap.innerHTML = (d.cards||[]).map(c=>`
-        <div class="kpi">
-          <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
-            <div>
-              <div style="font-weight:900">${escapeHtml(c.typeName)}</div>
-              <div class="muted">รองรับ ${Number(c.capacityPersons).toLocaleString()} คน • จองแล้ว ${Number(c.booked).toLocaleString()} คน • คงเหลือ ${Number(c.remaining).toLocaleString()} คน</div>
-            </div>
-            <div class="pill ${c.remaining>0?'ok':'no'}">
-              ${c.remaining>0?'🟢 ว่าง':'🔴 เต็ม'} • ${Number(c.percent||0)}%
+  const wrap = document.getElementById('dashCards');
+  wrap.innerHTML = (d.cards||[]).map(c=>{
+    const cap = Number(c.capacityPersons||0);
+    const remain = Number(c.remaining||0);
+    const vacantPercent = cap > 0 ? Math.round((remain / cap) * 100) : 0;
+
+    return `
+      <div class="kpi">
+        <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+          <div>
+            <div style="font-weight:900">${escapeHtml(c.typeName)}</div>
+            <div class="muted">
+              รองรับ ${cap.toLocaleString()} คน • จองแล้ว ${Number(c.booked||0).toLocaleString()} คน • คงเหลือ ${remain.toLocaleString()} คน
             </div>
           </div>
-          <div class="bar" style="margin-top:10px;"><div style="width:${Number(c.percent||0)}%;"></div></div>
+          <div class="pill ${remain>0?'ok':'no'}">
+            ${remain>0?'🟢 ว่าง':'🔴 เต็ม'} • ${vacantPercent}%
+          </div>
         </div>
-      `).join('');
-    }
+        <div class="bar" style="margin-top:10px;">
+          <div style="width:${vacantPercent}%;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
+    // ✅ รายชื่อผู้จอง: ปิดชื่อ 3 ตัวท้าย / คณะ-สาขาเต็ม / ไม่แสดงโทร (ตามที่สั่ง)
     async function refreshPublicList(){
       const res = await callApi("listReservations");
       const tb = document.getElementById('publicBody');
@@ -670,12 +699,12 @@
 
       const rows = (res.data || [])
         .filter(r => String(r.Status) === 'BOOKED')
-        .slice(0, 200);
+        .slice(0, 300);
 
       tb.innerHTML = rows.map(r=>`
         <tr>
-          <td>${escapeHtml(r.CreatedAt)}</td>
-          <td><b>${escapeHtml(maskName(r.FullName))}</b></td>
+          <td>${escapeHtml(formatDateTime(r.CreatedAt))}</td>
+          <td><b>${escapeHtml(maskNameLast3(r.FullName))}</b></td>
           <td>${escapeHtml(r.Faculty || '-')}</td>
           <td>${escapeHtml(r.Major || '-')}</td>
           <td>${escapeHtml(r.TypeName || '-')}</td>
@@ -696,9 +725,13 @@
       hideReport();
       window.scrollTo({top: 0, behavior:'smooth'});
     }
+
+    // ✅ ไม่แสดง user/password ใน UI (แต่ตรวจในโค้ด)
     function adminLogin(){
       const u = (document.getElementById('adminUser').value || '').trim();
       const p = (document.getElementById('adminPass').value || '').trim();
+
+      // ตรวจแบบเงียบตาม requirement
       if(u === "sam" && p === "1900"){
         state.adminAuthed = true;
         document.getElementById('adminLogin').style.display = 'none';
@@ -718,53 +751,78 @@
       toast('info', 'ออกจากระบบแล้ว');
     }
 
-    // Admin-only tools (kept, unchanged)
-    async function openAdminReport(){ openAdmin(); }
-    function hideReport(){ const rc = document.getElementById('reportCard'); if(rc) rc.style.display='none'; }
-    async function openExcel(){ openAdmin(); }
-    async function testConnection(){ openAdmin(); }
+    /******** Admin tools ********/
+    async function testConnection(){
+      Swal.showLoading();
+      const r = await callApi("getDashboard");
+      Swal.close();
+      if(r && r.ok) await Swal.fire({icon:'success', title:'เชื่อมต่อสำเร็จ ✅', text:'API พร้อมใช้งาน'});
+      else await Swal.fire({icon:'error', title:'เชื่อมต่อไม่สำเร็จ', text: r?.message || 'เรียก API ไม่ได้'});
+    }
 
+    async function openExcel(){
+      const res = await callApi("getExportExcelUrl");
+      const url = res?.data?.url;
+      if(!url){
+        await Swal.fire({icon:'error', title:'ไม่สำเร็จ', text: res?.message || 'ไม่พบลิงก์ส่งออก Excel'});
+        return;
+      }
+      window.open(url, "_blank");
+    }
+
+    async function openAdminReport(){
+      if(!state.adminAuthed) return openAdmin();
+      document.getElementById('reportCard').style.display = 'block';
+      Swal.showLoading();
+      const res = await callApi("listReservations");
+      Swal.close();
+      if(!res || !res.ok){
+        await Swal.fire({icon:'error', title:'โหลดรายงานไม่สำเร็จ', text: res?.message || 'ไม่สามารถติดต่อ API'});
+        return;
+      }
+      state.reservations = res.data || [];
+      renderReport();
+      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+    }
+
+    function hideReport(){
+      const rc = document.getElementById('reportCard');
+      if(rc) rc.style.display = 'none';
+    }
+
+    function renderReport(){
+      const q = (document.getElementById('q').value || '').trim().toLowerCase();
+      const rows = (state.reservations || []).filter(r=>{
+        if(!q) return true;
+        const s = [
+          r.CreatedAt, r.ResvID, r.FullName, r.Major, r.Faculty, r.Phone,
+          r.TypeName, r.RoomTypeID, r.Status
+        ].map(x=>String(x||'').toLowerCase()).join(' ');
+        return s.includes(q);
+      });
+
+      const tb = document.getElementById('reportBody');
+      tb.innerHTML = rows.map(r=>`
+        <tr>
+          <td>${escapeHtml(r.CreatedAt)}</td>
+          <td><b>${escapeHtml(r.ResvID)}</b></td>
+          <td>${escapeHtml(r.FullName)}</td>
+          <td>${escapeHtml(r.Major)}</td>
+          <td>${escapeHtml(r.Faculty)}</td>
+          <td>${escapeHtml(r.Phone)}</td>
+          <td>${escapeHtml(r.TypeName || '-')}</td>
+          <td>${Number(r.PricePerTerm||0).toLocaleString()}</td>
+          <td>${String(r.Status)==='BOOKED'
+            ? '<span class="pill ok">✅ BOOKED</span>'
+            : '<span class="pill no">⛔ CANCELLED</span>'}
+          </td>
+        </tr>
+      `).join('') || `<tr><td colspan="9" class="muted">ไม่พบข้อมูล</td></tr>`;
+    }
+
+    // init
     setApiBadge();
     refreshAll();
   </script>
-
-  <!-- Admin card kept minimal in this snippet as before -->
-  <div id="adminCard" class="card" style="max-width:1180px; margin:18px auto 40px; display:none;">
-    <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-      <div>
-        <h2 style="margin:0;">🔒 ระบบหลังบ้าน</h2>
-        <div class="muted">สำหรับเจ้าหน้าที่ (ต้องยืนยันตัวตนก่อนใช้งาน)</div>
-      </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="btn soft" onclick="closeAdmin()">✖ ปิด</button>
-      </div>
-    </div>
-
-    <div id="adminLogin" style="margin-top:12px;">
-      <div class="row">
-        <div class="field">
-          <label for="adminUser">Username</label>
-          <input id="adminUser" type="text" autocomplete="username" placeholder="กรอกชื่อผู้ใช้">
-        </div>
-        <div class="field">
-          <label for="adminPass">Password</label>
-          <input id="adminPass" type="password" autocomplete="current-password" placeholder="กรอกรหัสผ่าน">
-        </div>
-      </div>
-      <div class="actions">
-        <button class="btn" onclick="adminLogin()">เข้าสู่ระบบ</button>
-      </div>
-    </div>
-
-    <div id="adminTools" style="margin-top:12px; display:none;">
-      <div class="actions">
-        <button class="btn warn" onclick="testConnection()">🧪 ทดสอบเชื่อมต่อ API</button>
-        <button class="btn" onclick="openAdminReport()">📋 รายงาน</button>
-        <button class="btn soft" onclick="openExcel()">📥 ส่งออกเป็น Excel</button>
-        <button class="btn soft" onclick="adminLogout()">ออกจากระบบ</button>
-      </div>
-      <div class="muted" style="margin-top:8px;">(เมนูหลังบ้านยังคงทำงานเหมือนเดิมในเวอร์ชันเต็ม)</div>
-    </div>
-  </div>
 </body>
 </html>
