@@ -7,7 +7,43 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <script>
+    /****************************************************
+     * ✅ CSP-safe Alert/Confirm (Fallback for SweetAlert)
+     ****************************************************/
+    (function(){
+      function stripHtml(html){
+        return String(html || '')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<[^>]*>/g, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+      }
+
+      window.Swal = window.Swal || {
+        fire: async (opt) => {
+          const title = opt?.title || '';
+          const text = opt?.text || stripHtml(opt?.html || '');
+          if (opt?.showCancelButton) {
+            const ok = confirm(title + (text ? "\n\n" + text : ""));
+            return { isConfirmed: ok };
+          } else {
+            alert(title + (text ? "\n\n" + text : ""));
+            return { isConfirmed: true };
+          }
+        },
+        showLoading: ()=>{},
+        close: ()=>{}
+      };
+
+      // ✅ toast แบบไม่ใช้ Swal (กัน CSP ชัวร์)
+      window.toast = function(icon, title){
+        console.log(`[${icon}] ${title}`);
+      };
+    })();
+  </script>
 
   <style>
     :root{
@@ -240,23 +276,23 @@
         <h2>📝 แบบฟอร์มจองห้องพัก (ออนไลน์)</h2>
         <div class="row">
           <div class="field">
-            <label>ชื่อ - สกุลผู้จอง (นักศึกษา)</label>
-            <input id="fullName" placeholder="เช่น นายสมชาย ใจดี">
+            <label for="fullName">ชื่อ - สกุลผู้จอง (นักศึกษา)</label>
+            <input id="fullName" type="text" placeholder="เช่น นายสมชาย ใจดี" autocomplete="name">
           </div>
           <div class="field">
-            <label>เบอร์โทรศัพท์</label>
-            <input id="phone" placeholder="เช่น 08xxxxxxxx">
+            <label for="phone">เบอร์โทรศัพท์</label>
+            <input id="phone" type="tel" placeholder="เช่น 08xxxxxxxx" autocomplete="tel">
           </div>
           <div class="field">
-            <label>สาขาวิชา</label>
-            <input id="major" placeholder="เช่น นิเทศศาสตร์ดิจิทัล">
+            <label for="major">สาขาวิชา</label>
+            <input id="major" type="text" placeholder="เช่น นิเทศศาสตร์ดิจิทัล">
           </div>
           <div class="field">
-            <label>คณะ</label>
-            <input id="faculty" placeholder="เช่น คณะมนุษยศาสตร์และสังคมศาสตร์">
+            <label for="faculty">คณะ</label>
+            <input id="faculty" type="text" placeholder="เช่น คณะมนุษยศาสตร์และสังคมศาสตร์">
           </div>
           <div class="field" style="grid-column:1/-1">
-            <label>ประเภทห้องพักที่ต้องการจอง</label>
+            <label for="roomTypeId">ประเภทห้องพักที่ต้องการจอง</label>
             <select id="roomTypeId"></select>
             <div class="small" id="roomHint" style="margin-top:6px;"></div>
           </div>
@@ -319,7 +355,7 @@
       </div>
 
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-        <input id="q" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / หอ / ประเภทห้อง / รหัสการจอง"
+        <input id="q" type="text" placeholder="ค้นหา: ชื่อ / คณะ / สาขา / หอ / ประเภทห้อง / รหัสการจอง"
                style="flex:1; min-width:240px; padding:11px 12px; border-radius:14px; border:1px solid var(--line); font-family:'Kanit',sans-serif;">
         <button class="btn soft" onclick="renderReport()">🔎 ค้นหา</button>
         <button class="btn soft" onclick="document.getElementById('q').value=''; renderReport();">🧼 ล้างค้นหา</button>
@@ -351,14 +387,10 @@
     /**********************
      *  ✅ ตั้งค่าตรงนี้
      **********************/
-    // ใส่ลิงก์ Apps Script Web App (ลงท้าย /exec)
     const API_URL = "https://script.google.com/macros/s/AKfycbwNxGmyLLU5QU-MK5wlrQDpm-n-g6ERgGL0l6DcahL6fy-LF1NhxyOfYGb1ObCshTDedA/exec";
 
     const state = { roomTypes: [], dashboard: null, reservations: [] };
 
-    function toast(icon, title){
-      Swal.fire({toast:true, position:'top-end', showConfirmButton:false, timer:2400, timerProgressBar:true, icon, title});
-    }
     function escapeHtml(s){
       return String(s ?? '').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
     }
@@ -366,7 +398,7 @@
 
     function setApiBadge(){
       const el = document.getElementById('apiBadge');
-      if(!API_URL || API_URL.includes("PASTE_YOUR")){
+      if(!API_URL){
         el.textContent = "API: ยังไม่ตั้งค่า";
         el.style.opacity = .9;
       }else{
@@ -375,31 +407,47 @@
       }
     }
 
+    // ✅ กันหมุนค้าง + debug raw response
     async function callApi(action, payload){
-      // Apps Script API expects POST JSON: { action, payload }
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({ action, payload })
-      });
-      // Some failures won't be JSON
-      const text = await res.text();
-      try { return JSON.parse(text); }
-      catch { return { ok:false, message:"API ตอบกลับไม่ใช่ JSON", raw:text }; }
+      const ctrl = new AbortController();
+      const to = setTimeout(()=>ctrl.abort(), 15000);
+
+      try{
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({ action, payload }),
+          signal: ctrl.signal
+        });
+
+        const text = await res.text();
+        console.log("API status:", res.status, "action:", action);
+        console.log("API raw:", text);
+
+        try { return JSON.parse(text); }
+        catch { return { ok:false, message:"API ตอบกลับไม่ใช่ JSON", raw:text, status:res.status }; }
+
+      }catch(err){
+        console.error("Fetch error:", err);
+        return { ok:false, message:"Fetch failed/timeout", raw:String(err) };
+      }finally{
+        clearTimeout(to);
+      }
     }
 
     async function refreshAll(){
       setApiBadge();
-      if(!API_URL || API_URL.includes("PASTE_YOUR")){
+      if(!API_URL){
         toast('warning', 'ยังไม่ได้ตั้งค่า API_URL');
         return;
       }
 
       Swal.showLoading();
+
       const rt = await callApi("getRoomTypes");
       if(!rt || !rt.ok){
         Swal.close();
-        Swal.fire({icon:'error', title:'โหลดประเภทห้องไม่สำเร็จ', text: rt?.message || 'ไม่สามารถติดต่อ API'});
+        await Swal.fire({icon:'error', title:'โหลดประเภทห้องไม่สำเร็จ', text: rt?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
       state.roomTypes = rt.data || [];
@@ -409,7 +457,7 @@
       const d = await callApi("getDashboard");
       Swal.close();
       if(!d || !d.ok){
-        Swal.fire({icon:'error', title:'โหลด Dashboard ไม่สำเร็จ', text: d?.message || 'ไม่สามารถติดต่อ API'});
+        await Swal.fire({icon:'error', title:'โหลด Dashboard ไม่สำเร็จ', text: d?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
       state.dashboard = d.data;
@@ -475,7 +523,7 @@
       };
 
       if(!payload.fullName || !payload.major || !payload.faculty || !payload.phone || !payload.roomTypeId){
-        Swal.fire({icon:'warning', title:'กรอกข้อมูลไม่ครบ', text:'กรุณากรอกข้อมูลให้ครบทุกช่อง'});
+        await Swal.fire({icon:'warning', title:'กรอกข้อมูลไม่ครบ', text:'กรุณากรอกข้อมูลให้ครบทุกช่อง'});
         return;
       }
 
@@ -503,11 +551,11 @@
       Swal.close();
 
       if(!r || !r.ok){
-        Swal.fire({icon:'error', title:'จองไม่สำเร็จ', text: r?.message || 'ไม่สามารถติดต่อ API'});
+        await Swal.fire({icon:'error', title:'จองไม่สำเร็จ', text: r?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
 
-      Swal.fire({icon:'success', title:'สำเร็จ', text:`${r.message}\nรหัสการจอง: ${r.data?.resvId || '-'}`});
+      await Swal.fire({icon:'success', title:'สำเร็จ', text:`${r.message}\nรหัสการจอง: ${r.data?.resvId || '-'}`});
       clearForm();
       await refreshAll();
     }
@@ -546,7 +594,7 @@
       Swal.close();
 
       if(!res || !res.ok){
-        Swal.fire({icon:'error', title:'โหลดรายงานไม่สำเร็จ', text: res?.message || 'ไม่สามารถติดต่อ API'});
+        await Swal.fire({icon:'error', title:'โหลดรายงานไม่สำเร็จ', text: res?.message || 'ไม่สามารถติดต่อ API'});
         return;
       }
       state.reservations = res.data || [];
@@ -593,28 +641,23 @@
       const res = await callApi("getExportExcelUrl");
       const url = res?.data?.url;
       if(!url){
-        Swal.fire({icon:'error', title:'ไม่สำเร็จ', text: res?.message || 'ไม่พบลิงก์ส่งออก Excel'});
+        await Swal.fire({icon:'error', title:'ไม่สำเร็จ', text: res?.message || 'ไม่พบลิงก์ส่งออก Excel'});
         return;
       }
       window.open(url, "_blank");
     }
 
     async function testConnection(){
-      if(!API_URL || API_URL.includes("PASTE_YOUR")){
-        Swal.fire({icon:'warning', title:'ยังไม่ได้ตั้งค่า API_URL', text:'กรุณานำลิงก์ /exec ของ Apps Script มาใส่ที่ตัวแปร API_URL'});
-        return;
-      }
       Swal.showLoading();
       const r = await callApi("getDashboard");
       Swal.close();
-      if(r && r.ok) Swal.fire({icon:'success', title:'เชื่อมต่อสำเร็จ ✅', text:'API พร้อมใช้งาน'});
-      else Swal.fire({icon:'error', title:'เชื่อมต่อไม่สำเร็จ', text: r?.message || 'เรียก API ไม่ได้'});
+      if(r && r.ok) await Swal.fire({icon:'success', title:'เชื่อมต่อสำเร็จ ✅', text:'API พร้อมใช้งาน'});
+      else await Swal.fire({icon:'error', title:'เชื่อมต่อไม่สำเร็จ', text: r?.message || 'เรียก API ไม่ได้'});
     }
 
     // init
     setApiBadge();
-    // ไม่ auto-refresh ถ้ายังไม่ใส่ API
-    if(API_URL && !API_URL.includes("PASTE_YOUR")) refreshAll();
+    if(API_URL) refreshAll();
   </script>
 </body>
 </html>
