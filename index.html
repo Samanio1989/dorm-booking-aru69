@@ -269,6 +269,44 @@
       align-items:center; gap:6px;
     }
     .adminBadge.on{ display:inline-flex; }
+
+    /* ✅ NEW: info boxes */
+    .infoGrid{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    .infoBox{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px;
+      box-shadow: 0 10px 22px rgba(31,41,55,.06);
+    }
+    .infoBox h3{
+      margin:0 0 6px;
+      font-size:14px;
+      font-weight:900;
+    }
+    .infoBox ol, .infoBox ul{
+      margin: 6px 0 0 18px;
+      padding:0;
+    }
+    .infoBox li{
+      margin: 4px 0;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .noteLine{
+      margin-top:8px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px dashed rgba(124,92,255,.35);
+      background: rgba(124,92,255,.06);
+      font-size:12px;
+      color: var(--muted);
+    }
   </style>
 </head>
 
@@ -310,6 +348,52 @@
           </div>
         </div>
 
+        <!-- ✅ NEW: Additional info for students -->
+        <div class="infoGrid">
+          <div class="infoBox">
+            <h3>🧺 สิ่งของใช้ส่วนตัวที่นักศึกษาต้องเตรียมมา</h3>
+            <ol>
+              <li>ผ้าปูที่นอน 3.50 ฟุต</li>
+              <li>หมอน</li>
+              <li>ปลอกหมอน</li>
+              <li>ผ้าห่ม</li>
+              <li>ผ้าม่าน</li>
+              <li>ของใช้ส่วนตัวที่จำเป็น</li>
+            </ol>
+          </div>
+
+          <div class="infoBox">
+            <h3>🔌 เครื่องใช้ไฟฟ้าที่อนุญาตให้นำมาใช้ในหอพัก</h3>
+            <ol>
+              <li>เตารีด</li>
+              <li>พัดลม</li>
+              <li>หม้อหุงข้าว</li>
+              <li>กระติกน้ำร้อน</li>
+              <li>ตู้เย็นขนาดไม่เกิน 5 คิว (ห้องละไม่เกิน 1 ตู้)</li>
+              <li>โทรทัศน์ (ห้องละไม่เกิน 1 เครื่อง)</li>
+            </ol>
+            <div class="noteLine">
+              หมายเหตุ: การใช้งานเครื่องใช้ไฟฟ้าต้องเป็นไปตามกฎระเบียบของหอพัก และใช้งานอย่างประหยัดพลังงาน
+            </div>
+          </div>
+
+          <div class="infoBox">
+            <h3>✅ คุณสมบัติของผู้เข้าพักในหอพัก</h3>
+            <ol>
+              <li>นักศึกษาหญิงชั้นปีที่ 1 ที่มีความประสงค์เข้าพักหอพักนักศึกษา</li>
+              <li>
+                นักศึกษาหญิงชั้นปีที่ 2 – 5 จะต้องมีคุณสมบัติดังนี้
+                <ol style="margin-top:6px">
+                  <li>เป็นนักศึกษาที่เคยพักอาศัยอยู่ภายในหอพักตั้งแต่ชั้นปีที่ 1</li>
+                  <li>มีความประพฤติดี เรียบร้อย</li>
+                  <li>ไม่เป็นผู้กระทำผิดกฎ ระเบียบของหอพัก</li>
+                </ol>
+              </li>
+              <li>คณะกรรมการหอพักพิจารณาเห็นสมควรให้เข้าพัก</li>
+            </ol>
+          </div>
+        </div>
+
         <div id="roomList" class="chips"></div>
 
         <hr style="border:none; border-top:1px solid rgba(229,231,235,.7); margin:14px 0;">
@@ -318,7 +402,7 @@
         <div class="row">
           <div class="field">
             <label for="fullName">ชื่อ - สกุลผู้จอง (นักศึกษา)</label>
-            <input id="fullName" type="text" placeholder="เช่น นายสมชาย ใจดี" autocomplete="name">
+            <input id="fullName" type="text" placeholder="เช่น นางสาวสมหญิง ใจดี" autocomplete="name">
           </div>
 
           <div class="field">
@@ -573,8 +657,11 @@
     }
 
     function normalizeTypeName(typeName){
-      // ทำให้ไม่แสดง "ห้องพักคู่ " ซ้ำซ้อนก็ได้ แต่ผู้ใช้ขอให้เหลือแค่ประเภท
       return String(typeName || '').trim();
+    }
+
+    function normalizePhone(phone){
+      return String(phone||'').replace(/\D/g,'');
     }
 
     /**********************
@@ -587,7 +674,7 @@
         return;
       }
 
-      // รวมตาม TypeName + Price (กันกรณีมีหลายหอแต่ชนประเภทเดียวกัน)
+      // รวมตาม TypeName + Price
       const group = {};
       state.roomTypes.forEach(t=>{
         const key = `${t.typeName}__${t.pricePerTerm}`;
@@ -619,7 +706,7 @@
 
     function buildRoomSelect(){
       const sel = document.getElementById('roomTypeId');
-      // ไม่แสดงชื่อหอใน dropdown
+
       const options = state.roomTypes.map(t=>({
         id: t.roomTypeId,
         label: `${normalizeTypeName(t.typeName)} (${fmtMoney(t.pricePerTerm)} บาท/เทอม)`,
@@ -629,10 +716,9 @@
         notes: t.notes||''
       }));
 
-      // เรียงให้พัดลมก่อน แอร์
       options.sort((a,b)=> a.label.localeCompare(b.label,'th'));
 
-      sel.innerHTML = options.map(o=>`
+      sel.innerHTML = `<option value="">-- เลือกประเภทห้องพัก --</option>` + options.map(o=>`
         <option value="${escapeHtml(o.id)}" data-type="${escapeHtml(o.typeName)}" data-price="${o.price}">
           ${escapeHtml(o.label)}
         </option>
@@ -643,7 +729,6 @@
     }
 
     function selectGroupType(typeName, price){
-      // เลือก option แรกที่ตรง typeName+price
       const sel = document.getElementById('roomTypeId');
       const opts = Array.from(sel.options);
       const found = opts.find(o => (o.getAttribute('data-type')||'') === typeName && Number(o.getAttribute('data-price')||0) === Number(price||0));
@@ -662,7 +747,7 @@
     }
 
     /**********************
-     * Dashboard (vacant % = remaining/capacity *100)
+     * Dashboard
      **********************/
     function renderDashboard(){
       const d = state.dashboard;
@@ -672,7 +757,6 @@
       document.getElementById('kBooked').textContent = fmtMoney(d.totals?.booked||0);
       document.getElementById('kRemain').textContent = fmtMoney(d.totals?.remaining||0);
 
-      // รวมตามประเภท (ไม่เอาชื่อหอ)
       const group = {};
       (d.cards||[]).forEach(c=>{
         const key = `${c.typeName}__${c.pricePerTerm}`;
@@ -749,7 +833,6 @@
      **********************/
     async function refreshAll(){
       setApiBadge();
-
       Swal.showLoading();
 
       const rt = await callApi("getRoomTypes");
@@ -771,7 +854,6 @@
       state.dashboard = d.data;
       renderDashboard();
 
-      // โหลดรายชื่อเพื่อแสดง PDPA (public)
       const resv = await callApi("listReservations");
       Swal.close();
 
@@ -779,7 +861,6 @@
         state.reservations = resv.data || [];
         renderPublicList();
       }else{
-        // ไม่ทำให้ล้มทั้งหน้า แต่แจ้งใน console
         console.warn("listReservations failed:", resv);
         state.reservations = [];
         renderPublicList();
@@ -815,6 +896,16 @@
         return;
       }
 
+      // ✅ UX guard: ถ้าหน้านี้มีข้อมูลแล้ว และพบว่าเบอร์นี้มี BOOKED อยู่ จะเตือนก่อนยิง API
+      const phoneN = normalizePhone(payload.phone);
+      const already = (state.reservations||[]).some(r =>
+        String(r.Status)==='BOOKED' && normalizePhone(r.Phone) === phoneN
+      );
+      if(already){
+        await Swal.fire({icon:'warning', title:'จองซ้ำไม่ได้', text:'ระบบอนุญาตให้จองได้ 1 ครั้งต่อปีการศึกษา'});
+        return;
+      }
+
       const type = state.roomTypes.find(x=>x.roomTypeId === payload.roomTypeId);
       const typeText = type ? `${normalizeTypeName(type.typeName)} (${fmtMoney(type.pricePerTerm)} บาท/เทอม)` : payload.roomTypeId;
 
@@ -845,7 +936,6 @@
       await Swal.fire({icon:'success', title:'สำเร็จ', text:`${r.message}\nรหัสการจอง: ${r.data?.resvId || '-'}`});
       clearForm();
 
-      // ✅ หลังจองเสร็จ รีเฟรชแล้วโชว์รายชื่อแบบ PDPA ทันที
       await refreshAll();
       window.scrollTo({top: document.body.scrollHeight * 0.35, behavior:'smooth'});
     }
@@ -871,7 +961,6 @@
     }
 
     function maskClose(e){
-      // click outside modal
       closeAdminModal();
     }
 
@@ -938,7 +1027,6 @@
       }
       state.reservations = res.data || [];
       renderReport();
-      // อัปเดต public list ด้วย เผื่อหลังบ้านรีเฟรช
       renderPublicList();
     }
 
